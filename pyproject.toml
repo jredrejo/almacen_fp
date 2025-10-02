@@ -1,0 +1,31 @@
+[project]
+name = "almacen_fp"
+version = "0.1.0"
+description = "Gestión de almacén mediante RFID para talleres de FP"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "Django>=5.0,<6.0",
+  "django-allauth>=65.0",
+  "django-htmx>=1.18.0",
+  "django-environ>=0.11",
+  "django-tailwind>=3.8",
+  "whitenoise>=6.6",
+  "Pillow>=10.4",
+]
+
+[dependency-groups]
+dev = [
+    "black>=25.9.0",
+    "debugpy>=1.8.17",
+    "mypy>=1.18.2",
+    "pip-tools>=7.5.1",
+    "pre-commit>=4.3.0",
+    "pytest>=8.4.2",
+]
+
+[tool.uv]
+# uv will manage virtual environment and lockfile
+
+[tool.ruff]
+line-length = 100
