@@ -1,0 +1,70 @@
+{% extends "base.html" %} {% block title %}Ubicaciones{% endblock %} {% block
+content %}
+<h1 class="text-xl font-semibold mb-3">Historial de ubicaciones</h1>
+
+<div class="grid md:grid-cols-3 gap-6">
+    <section class="md:col-span-2 bg-white rounded shadow overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-100">
+                <tr>
+                    <th class="text-left p-2">Fecha</th>
+                    <th class="text-left p-2">Producto</th>
+                    <th class="text-left p-2">Tipo</th>
+                    <th class="text-left p-2">Aula</th>
+                    <th class="text-left p-2">Estantería</th>
+                    <th class="text-left p-2">Posición</th>
+                    <th class="text-left p-2">Persona</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in ubicaciones %}
+                <tr class="border-b">
+                    <td class="p-2">{{ u.fecha|date:"d/m/Y H:i" }}</td>
+                    <td class="p-2">{{ u.producto.nombre }}</td>
+                    <td class="p-2">{{ u.get_tipo_display }}</td>
+                    <td class="p-2">{{ u.aula.nombre }}</td>
+                    <td class="p-2">{{ u.estanteria }}</td>
+                    <td class="p-2">{{ u.posicion }}</td>
+                    <td class="p-2">
+                        {% if u.persona %}{{
+                        u.persona.get_full_name|default:u.persona.username }}{%
+                        endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="p-4 text-center text-slate-500">
+                        Sin registros.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <aside class="bg-white rounded shadow p-4">
+        <h2 class="font-semibold mb-2 text-sm">
+            Registrar ubicación en estantería
+        </h2>
+        <form
+            method="post"
+            action=""
+            hx-post=""
+            hx-target="closest aside"
+            hx-swap="outerHTML"
+        >
+            {% csrf_token %} {{ form.as_p }}
+            <p class="text-xs text-slate-500">
+                Consejo: escanea el EPC para autocompletar el producto.
+            </p>
+            <button class="px-3 py-2 rounded bg-slate-800 text-white">
+                Guardar
+            </button>
+        </form>
+        <p class="text-xs mt-3 text-slate-500">
+            Nota: para préstamos y devoluciones usa las acciones en Inventario o
+            la página “En préstamo”.
+        </p>
+    </aside>
+</div>
+{% endblock %}
