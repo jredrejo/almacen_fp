@@ -1,75 +1,107 @@
-from django.conf import settings
 from django.db import models
-from django.utils import timezone
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 class Aula(models.Model):
-    nombre = models.CharField(max_length=120, unique=True)
-    codigo = models.CharField(max_length=50, unique=True)  # e.g., A101
+    nombre = models.CharField(max_length=100, unique=True)
+
+    class Meta:
+        verbose_name = "Aula"
+        verbose_name_plural = "Aulas"
 
     def __str__(self):
-        return f"{self.nombre} ({self.codigo})"
+        return f"{self.nombre}"
 
 
 class Producto(models.Model):
+    # RFID EPC code (read by the reader; typically keyboard wedge)
+    epc = models.CharField("EPC", max_length=96, unique=True)
     nombre = models.CharField(max_length=255)
-    epc = models.CharField("EPC (RFID)", max_length=96, unique=True)
-    posicion = models.CharField(max_length=120, blank=True)
-    n_serie = models.CharField(max_length=120, blank=True)
+    posicion = models.CharField(max_length=100, blank=True)  # slot/position label
+    n_serie = models.CharField("Nº de serie", max_length=255, blank=True)
     foto = models.ImageField(upload_to="productos/", blank=True, null=True)
     aula = models.ForeignKey(Aula, on_delete=models.PROTECT, related_name="productos")
-    estanteria = models.CharField(max_length=120, blank=True)
-    cantidad = models.FloatField(default=1)
+    estanteria = models.CharField(max_length=100, blank=True)
+    cantidad = models.FloatField(default=1.0)
     descripcion = models.TextField(blank=True)
-    fds = models.URLField("Ficha de seguridad (FDS)", blank=True)
-
-    # denormalized convenience fields for current holder
-    holder = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="prestamos",
-    )
-    holder_desde = models.DateTimeField(null=True, blank=True)
+    fds = models.URLField("FDS (hoja de datos)", blank=True)
 
     creado = models.DateTimeField(auto_now_add=True)
     actualizado = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["nombre", "aula_id"]
+        ordering = ["nombre"]
+        verbose_name = "Producto"
+        verbose_name_plural = "Productos"
 
     def __str__(self):
-        return self.nombre
+        return f"{self.nombre} ({self.epc})"
 
-    @property
-    def en_prestamo(self):
-        return self.holder_id is not None
+
+class Persona(models.Model):
+    """Optional profile table if you want extra fields; we just map to User."""
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="persona")
+
+    def __str__(self):
+        return self.user.get_full_name() or self.user.email
 
 
 class Ubicacion(models.Model):
-    """Event log of where a product is (shelf vs checked out). Required by spec."""
-
-    class Tipo(models.TextChoices):
-        ESTANTERIA = "SHELF", "En estantería"
-        PRESTAMO = "CO", "En préstamo"
-
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name="ubicaciones")
-    tipo = models.CharField(max_length=10, choices=Tipo.choices)
-    aula = models.ForeignKey(Aula, on_delete=models.PROTECT)
-    estanteria = models.CharField(max_length=120, blank=True)
-    posicion = models.CharField(max_length=120, blank=True)
-
-    persona = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
+    ESTADO_CHOICES = [
+        ("ESTANTE", "En estantería"),
+        ("PERSONA", "En manos de una persona"),
+    ]
+    producto = models.OneToOneField(
+        Producto, on_delete=models.CASCADE, related_name="ubicacion"
     )
-    fecha = models.DateTimeField(default=timezone.now)
+    estado = models.CharField(max_length=10, choices=ESTADO_CHOICES, default="ESTANTE")
+    # When on shelf:
+    aula = models.ForeignKey(
+        Aula,
+        on_delete=models.PROTECT,
+        related_name="ubicaciones",
+        null=True,
+        blank=True,
+    )
+    estanteria = models.CharField(max_length=100, blank=True)
+    posicion = models.CharField(max_length=100, blank=True)
+    # When taken:
+    persona = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="productos_tomados",
+        null=True,
+        blank=True,
+    )
+    tomado_en = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        ordering = ["-fecha"]
+        verbose_name = "Ubicación"
+        verbose_name_plural = "Ubicaciones"
 
     def __str__(self):
-        base = f"{self.producto} → {self.get_tipo_display()}"
-        if self.persona:
-            base += f" ({self.persona})"
-        return base
+        return f"{self.producto} - {self.estado}"
+
+
+class Prestamo(models.Model):
+    """History of take/return actions for quick glance & audit."""
+
+    producto = models.ForeignKey(
+        Producto, on_delete=models.CASCADE, related_name="prestamos"
+    )
+    usuario = models.ForeignKey(
+        User, on_delete=models.PROTECT, related_name="prestamos"
+    )
+    tomado_en = models.DateTimeField(auto_now_add=True)
+    devuelto_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-tomado_en"]
+        verbose_name = "Préstamo"
+        verbose_name_plural = "Préstamos"
+
+    def __str__(self):
+        return f"{self.producto} → {self.usuario}"

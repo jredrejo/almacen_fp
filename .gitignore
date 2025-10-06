@@ -174,3 +174,4 @@ almacen_fp.sqlite3
 almacen_fp.sqlite3-journal
 almacen_fp.sqlite3-wal
 uv.lock
+staticfiles/

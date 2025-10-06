@@ -18,7 +18,7 @@ Características
 - Inventario con edición y borrado en línea mediante HTMX
 - Página de préstamos (un vistazo rápido a quién tiene qué).
 - Registro de localización (**Ubicacion**) para saber en qué almacén está cada producto
-- CSS meidante `django-tailwind`. HTMX para un UX dinámico. No se usa ningún framework de JavaScript.
+- CSS mediante bootstrap. HTMX para un UX dinámico. No se usa ningún framework de JavaScript.
 
 ## Puesta en marcha rápida (con uv)
 ```bash
@@ -27,7 +27,11 @@ uv sync
 
 # 2) Configura env
 cp .env.example .env
-# set GOOGLE client id/secret, SECRET_KEY, etc.
+# rellena GOOGLE client id/secret, SECRET_KEY, etc.
+# Authorized redirect URI:
+http://localhost:8000/accounts/google/login/callback/
+
+Login mediante "Sign in with Google" (restringido a santiagoapostol.net).
 
 # 3) Migraciones & crea superuser
 uv run python manage.py migrate
@@ -36,11 +40,11 @@ uv run python manage.py createsuperuser
 # 4) Crea el grupo de profesores
 uv run python manage.py shell -c "from django.contrib.auth.models import Group; Group.objects.get_or_create(name='ProfesoresFP')"
 
-# 5) Compilación de Tailwind  (la primera vez y si se cambian los templates)
-# Optción A: usando los comandos de django-tailwind
-# (Si prefiere el  CLI, puede ejecutar `npx tailwindcss -i theme/static_src/input.css -o static/css/tailwind.css --watch`)
-mkdir -p static/css
-npx tailwindcss -i theme/static_src/input.css -o static/css/tailwind.css --minify
-
-# 6) Arrancar el servidor
+# 5) Arrancar el servidor
 uv run python manage.py runserver
+
+
+
+## Antes de arrancar el servidor en producción recuerda:
+- cambiar DEBUG=1 por DEBUG=0 en .env
+- ejecutar `python manage.py collectstatic`
