@@ -10,23 +10,18 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
-import environ
 import os
 from pathlib import Path
-
+from dotenv import load_dotenv
+from django.contrib.messages import constants as messages
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
 
-env = environ.Env(
-    DEBUG=(bool, False),
-)
-environ.Env.read_env(BASE_DIR / ".env")
-
-DEBUG = env("DEBUG")
-SECRET_KEY = env("SECRET_KEY", default="insecure")
-ALLOWED_HOSTS = [h.strip() for h in env("ALLOWED_HOSTS", default="*").split(",") if h.strip()]
-
+DEBUG = os.getenv("DEBUG", "1") == "1"
+SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-key")
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -41,24 +36,26 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
-    # third-party
-    "django_htmx",
+    # allauth
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
     "allauth.socialaccount.providers.google",
-    "tailwind",
-    "theme",
+    # third-party
+    "django_htmx",
+    "template_partials",
     # app
     "almacen",
 ]
+
+SITE_ID = 1
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.common.CommonMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
+    "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "allauth.account.middleware.AccountMiddleware",
@@ -71,13 +68,15 @@ ROOT_URLCONF = "core.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.debug",
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
+                "django.template.context_processors.media",
+                "django.template.context_processors.static",
                 "django.contrib.messages.context_processors.messages",
             ],
         },
@@ -130,10 +129,12 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "/static/"
-STATIC_ROOT = env("STATIC_ROOT", default=str(BASE_DIR / "staticfiles"))
-STATICFILES_DIRS = [BASE_DIR / "static"]
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
-MEDIA_ROOT = env("MEDIA_ROOT", default=str(BASE_DIR / "media"))
+MEDIA_ROOT = BASE_DIR / "media"
 
 
 # Default primary key field type
@@ -141,42 +142,72 @@ MEDIA_ROOT = env("MEDIA_ROOT", default=str(BASE_DIR / "media"))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-
-# Auth / allauth
+# Authentication
 AUTHENTICATION_BACKENDS = (
     "django.contrib.auth.backends.ModelBackend",
     "allauth.account.auth_backends.AuthenticationBackend",
 )
 
-ACCOUNT_AUTHENTICATION_METHOD = "username_email"
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_USERNAME_REQUIRED = True
-ACCOUNT_EMAIL_VERIFICATION = "none"
+LOGIN_REDIRECT_URL = "almacen:dashboard"
+LOGOUT_REDIRECT_URL = "account_login"
 
-LOGIN_REDIRECT_URL = env("LOGIN_REDIRECT_URL", default="/")
-LOGOUT_REDIRECT_URL = env("LOGOUT_REDIRECT_URL", default="/accounts/login/")
+# allauth account settings (as requested)
+ACCOUNT_LOGIN_METHODS = ["email"]  # or ["email", "username"] if you want both
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
+
+SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_QUERY_EMAIL = True
 
 SOCIALACCOUNT_PROVIDERS = {
     "google": {
         "APP": {
-            "client_id": env("SOCIALACCOUNT_GOOGLE_CLIENT_ID", default=""),
-            "secret": env("SOCIALACCOUNT_GOOGLE_SECRET", default=""),
+            "client_id": os.getenv("GOOGLE_CLIENT_ID", ""),
+            "secret": os.getenv("GOOGLE_CLIENT_SECRET", ""),
             "key": "",
         },
-        # restrict to Workspace domain
-        "OAUTH_PKCE_ENABLED": True,
+        # Enforce Workspace domain
+        "HOSTED_DOMAIN": os.getenv("GOOGLE_HOSTED_DOMAIN", "santiagoapostol.net"),
+        "prompt": "select_account",
+        "LOGIN_HINT": "santiagoapostol.net",
         "SCOPE": ["profile", "email"],
-        "AUTH_PARAMS": {"hd": env("GOOGLE_WORKSPACE_DOMAIN", default="santiagoapostol.net")},
     }
 }
 
-# Tailwind (django-tailwind)
-TAILWIND_APP_NAME = "theme"
-INTERNAL_IPS = ["127.0.0.1"]
-NPM_BIN_PATH = "npm"  # or "pnpm" if you prefer
+
+# Message tags for Bootstrap
+MESSAGE_TAGS = {
+    messages.DEBUG: "debug",
+    messages.INFO: "info",
+    messages.SUCCESS: "success",
+    messages.WARNING: "warning",
+    messages.ERROR: "danger",
+}
+
+
+# Email configuration
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+)
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "almacen@santiagoapostol.net")
+
 
 # Whitenoise
 STORAGES = {
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    },
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
 }
+
+# Security settings for production
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_REDIRECT_EXEMPT = []
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True

@@ -1,0 +1,77 @@
+<tr id="row-{{ p.id }}">
+    <td style="width: 70px">
+        {% if p.foto %}
+        <img
+            src="{{ p.foto.url }}"
+            alt=""
+            class="img-thumbnail"
+            style="width: 60px; height: 60px; object-fit: cover"
+        />
+        {% else %}
+        <div class="text-muted small">—</div>
+        {% endif %}
+    </td>
+    <td>
+        <div class="fw-medium">{{ p.nombre }}</div>
+        <div class="text-muted small">{{ p.n_serie|default:"" }}</div>
+    </td>
+    <td><code>{{ p.epc }}</code></td>
+    <td>
+        <div>{{ p.aula }}</div>
+    </td>
+    <td>
+        {% if p.ubicacion and p.ubicacion.estado == 'ESTANTE' %}
+        <div>Estantería: <strong>{{ p.estanteria|default:"—" }}</strong></div>
+        <div class="text-muted small">
+            Posición: {{ p.posicion|default:"—" }}
+        </div>
+        {% elif p.ubicacion and p.ubicacion.estado == 'PERSONA' %}
+        <div class="text-danger">
+            En manos de: {{
+            p.ubicacion.persona.get_full_name|default:p.ubicacion.persona.email
+            }}
+        </div>
+        <div class="text-muted small">{{ p.ubicacion.tomado_en }}</div>
+        {% else %}
+        <span class="text-muted">Desconocida</span>
+        {% endif %}
+    </td>
+    <td>{{ p.cantidad }}</td>
+    <td>
+        <span
+            class="badge {% if p.ubicacion and p.ubicacion.estado == 'PERSONA' %}bg-danger{% else %}bg-success{% endif %}"
+        >
+            {% if p.ubicacion %}{{ p.ubicacion.get_estado_display }}{% else
+            %}Desconocido{% endif %}
+        </span>
+    </td>
+    <td class="text-end">
+        <div class="btn-group btn-group-sm">
+            <a
+                class="btn btn-outline-secondary"
+                href="{% url 'almacen:producto_edit' p.id %}"
+                hx-boost="false"
+                >Editar</a
+            >
+            {% if request.user.is_authenticated %}
+            <button
+                class="btn btn-outline-primary"
+                hx-post="{% url 'almacen:toggle_prestamo' p.id %}"
+                hx-target="#row-{{ p.id }}"
+                hx-swap="outerHTML"
+            >
+                Tomar/Devolver
+            </button>
+            {% endif %} {% if request.user|in_group:"ProfesoresFP" %}
+            <button
+                class="btn btn-outline-danger"
+                hx-delete="{% url 'almacen:producto_delete' p.id %}"
+                hx-target="#row-{{ p.id }}"
+                hx-swap="outerHTML swap:1ms"
+            >
+                Eliminar
+            </button>
+            {% endif %}
+        </div>
+    </td>
+</tr>

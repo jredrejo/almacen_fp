@@ -6,8 +6,8 @@ class ProductoForm(forms.ModelForm):
     class Meta:
         model = Producto
         fields = [
-            "nombre",
             "epc",
+            "nombre",
             "posicion",
             "n_serie",
             "foto",
@@ -22,7 +22,9 @@ class ProductoForm(forms.ModelForm):
         }
 
 
-class UbicacionShelfForm(forms.ModelForm):
+class UbicacionInlineForm(forms.ModelForm):
+    """Used in HTMX inline updates within inventory."""
+
     class Meta:
         model = Ubicacion
-        fields = ["producto", "aula", "estanteria", "posicion"]
+        fields = ["estado", "aula", "estanteria", "posicion", "persona"]

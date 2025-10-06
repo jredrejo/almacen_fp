@@ -1,15 +1,15 @@
 from django.urls import path
 from . import views
 
+app_name = "almacen"
+
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("inventario/", views.inventory, name="inventory"),
-    path("inventario/row/<int:pk>/", views.product_row, name="product_row"),  # HTMX partial
-    path("producto/nuevo/", views.product_create, name="product_create"),
-    path("producto/<int:pk>/editar/", views.product_edit, name="product_edit"),
-    path("producto/<int:pk>/eliminar/", views.product_delete, name="product_delete"),
-    path("prestamos/", views.checkouts, name="checkouts"),
-    path("ubicaciones/", views.locations, name="locations"),
-    path("prestamo/<int:pk>/tomar/", views.checkout_take, name="checkout_take"),
-    path("prestamo/<int:pk>/devolver/", views.checkout_return, name="checkout_return"),
+    path("inventario/row/<int:pk>/", views.inventory_row, name="inventory_row"),  # HTMX
+    path("producto/nuevo/", views.producto_create, name="producto_create"),
+    path("producto/<int:pk>/editar/", views.producto_edit, name="producto_edit"),
+    path("producto/<int:pk>/eliminar/", views.producto_delete, name="producto_delete"),
+    path("prestamos/", views.prestamos_overview, name="prestamos_overview"),
+    path("toggle-prestamo/<int:pk>/", views.toggle_prestamo, name="toggle_prestamo"),
 ]

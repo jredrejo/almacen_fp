@@ -1,0 +1,59 @@
+<!-- prettier-ignore -->
+{% extends "base.html" %}
+{% block title %}Panel - Almacén{% endblock %}
+{% block content %}
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="display-6">{{ total }}</div>
+                <div class="text-muted">Productos</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="display-6">{{ en_estante }}</div>
+                <div class="text-muted">En estantería</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="display-6">{{ en_manos }}</div>
+                <div class="text-muted">En manos</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h2 class="h5 mt-4">Añadidos recientemente</h2>
+<div class="table-responsive">
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>EPC</th>
+                <th>Aula</th>
+                <th>Cantidad</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in recientes %}
+            <tr>
+                <td>{{ p.nombre }}</td>
+                <td><code>{{ p.epc }}</code></td>
+                <td>{{ p.aula }}</td>
+                <td>{{ p.cantidad }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="text-muted">No hay datos.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

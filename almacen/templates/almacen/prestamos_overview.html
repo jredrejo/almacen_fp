@@ -1,0 +1,32 @@
+{% extends "base.html" %} {% block title %}Productos en manos - Almacén{%
+endblock %} {% block content %}
+<h1 class="h4">Personas con productos</h1>
+<div class="table-responsive">
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Persona</th>
+                <th>Producto</th>
+                <th>EPC</th>
+                <th>Desde</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in ubicaciones %}
+            <tr>
+                <td>{{ u.persona.get_full_name|default:u.persona.email }}</td>
+                <td>{{ u.producto.nombre }}</td>
+                <td><code>{{ u.producto.epc }}</code></td>
+                <td>{{ u.tomado_en }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="text-muted">
+                    Nadie tiene productos actualmente.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

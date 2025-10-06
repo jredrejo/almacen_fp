@@ -18,19 +18,22 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
-urlpatterns = [path("admin/", admin.site.urls), path("almacen/", include("almacen.urls"))]
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("almacen/", include("almacen.urls")),
+]
 
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
-from almacen.views import dashboard
+from django.views.generic import RedirectView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
-    path("", dashboard, name="dashboard"),
-    path("almacen/", include("store.urls")),
+    path("", RedirectView.as_view(pattern_name="almacen:dashboard", permanent=False)),
+    path("almacen/", include("almacen.urls", namespace="almacen")),
 ]
 
 if settings.DEBUG:

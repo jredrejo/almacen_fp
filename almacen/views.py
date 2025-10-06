@@ -1,154 +1,174 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.auth.models import Group
-from django.db.models import Q
-from django.http import Http404, HttpResponse
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
-from .forms import ProductoForm, UbicacionShelfForm
-from .models import Aula, Producto, Ubicacion
-from .htmx import hx_redirect
-
-TEACHERS_GROUP = "ProfesoresFP"
+from .forms import ProductoForm, UbicacionInlineForm
+from .models import Producto, Ubicacion, Prestamo
+from .tables import filter_inventory
 
 
 def is_teacher(user):
-    return user.is_authenticated and user.groups.filter(name=TEACHERS_GROUP).exists()
+    return user.is_authenticated and user.groups.filter(name="ProfesoresFP").exists()
 
 
 @login_required
 def dashboard(request):
-    aulas = Aula.objects.all().order_by("nombre")
-    productos = Producto.objects.select_related("aula").all()[:10]
-    return render(request, "store/dashboard.html", {"aulas": aulas, "productos": productos})
-
-
-teacher_required = user_passes_test(is_teacher, login_url="/accounts/login/")
+    total = Producto.objects.count()
+    en_manos = Ubicacion.objects.filter(estado="PERSONA").count()
+    en_estante = total - en_manos
+    recientes = Producto.objects.order_by("-creado")[:8]
+    ctx = {
+        "total": total,
+        "en_manos": en_manos,
+        "en_estante": en_estante,
+        "recientes": recientes,
+    }
+    return render(request, "almacen/dashboard.html", ctx)
 
 
 @login_required
 def inventory(request):
-    q = request.GET.get("q", "").strip()
-    aula_id = request.GET.get("aula", "")
-    qs = Producto.objects.select_related("aula")
-    if q:
-        qs = qs.filter(Q(nombre__icontains=q) | Q(epc__icontains=q) | Q(n_serie__icontains=q))
-    if aula_id:
-        qs = qs.filter(aula_id=aula_id)
-    qs = qs.order_by("nombre")
-    aulas = Aula.objects.all()
-    ctx = {"productos": qs, "aulas": aulas, "q": q, "aula_id": aula_id}
-    return render(request, "store/inventory.html", ctx)
+    qs = filter_inventory(Producto.objects.all(), request.GET.get("q"))
+    ctx = {"productos": qs, "q": request.GET.get("q", "")}
+    return render(request, "almacen/inventory.html", ctx)
 
 
 @login_required
-def product_row(request, pk):
-    prod = get_object_or_404(Producto.objects.select_related("aula"), pk=pk)
-    return render(request, "store/_product_row.html", {"p": prod})
+def inventory_row(request, pk: int):
+    """HTMX fragment to update a single row after edits/deletes."""
+    producto = get_object_or_404(
+        Producto.objects.select_related(
+            "ubicacion",
+        ),
+        pk=pk,
+    )
+    return render(request, "almacen/_product_row.partial.html", {"p": producto})
 
 
-@teacher_required
-def product_create(request):
+@login_required
+@user_passes_test(is_teacher)
+def producto_create(request):
     if request.method == "POST":
         form = ProductoForm(request.POST, request.FILES)
         if form.is_valid():
             p = form.save()
+            # create initial Ubicacion
             Ubicacion.objects.create(
                 producto=p,
-                tipo=Ubicacion.Tipo.ESTANTERIA,
+                estado="ESTANTE",
                 aula=p.aula,
                 estanteria=p.estanteria,
                 posicion=p.posicion,
             )
             messages.success(request, "Producto creado.")
-            if request.htmx:
-                return hx_redirect("/store/inventario/")
-            return redirect("inventory")
+            return redirect("almacen:inventory")
     else:
         form = ProductoForm()
-    return render(request, "store/product_form.html", {"form": form, "crear": True})
+    return render(request, "almacen/producto_create.html", {"form": form})
 
 
-@teacher_required
-def product_edit(request, pk):
+@login_required
+@user_passes_test(is_teacher)
+def producto_edit(request, pk: int):
     p = get_object_or_404(Producto, pk=pk)
     if request.method == "POST":
         form = ProductoForm(request.POST, request.FILES, instance=p)
         if form.is_valid():
             p = form.save()
+            # keep Ubicacion shelf info in sync if on ESTANTE
+            try:
+                u = p.ubicacion
+                if u.estado == "ESTANTE":
+                    u.aula = p.aula
+                    u.estanteria = p.estanteria
+                    u.posicion = p.posicion
+                    u.save()
+            except Ubicacion.DoesNotExist:
+                pass
             messages.success(request, "Producto actualizado.")
             if request.htmx:
-                return render(request, "store/_product_row.html", {"p": p})
-            return redirect("inventory")
+                return inventory_row(request, p.pk)
+            return redirect("almacen:inventory")
     else:
         form = ProductoForm(instance=p)
-    return render(request, "store/product_form.html", {"form": form, "crear": False, "p": p})
-
-
-@teacher_required
-def product_delete(request, pk):
-    p = get_object_or_404(Producto, pk=pk)
-    if request.method == "POST":
-        p.delete()
-        messages.success(request, "Producto eliminado.")
-        if request.htmx:
-            return HttpResponse(status=204)  # HTMX will remove row
-        return redirect("inventory")
-    raise Http404()
+    return render(request, "almacen/producto_create.html", {"form": form, "edit": True})
 
 
 @login_required
-def checkouts(request):
-    """Quick glance of people who have taken a product."""
-    productos = (
-        Producto.objects.select_related("aula", "holder")
-        .filter(holder__isnull=False)
-        .order_by("holder_desde")
-    )
-    return render(request, "store/checkouts.html", {"productos": productos})
-
-
-@teacher_required
-def locations(request):
-    """Table of Ubicacion events (where the products are / have been)."""
-    ubic = Ubicacion.objects.select_related("producto", "persona", "aula").all()[:500]
-    form = UbicacionShelfForm()
-    return render(request, "store/locations.html", {"ubicaciones": ubic, "form": form})
+@user_passes_test(is_teacher)
+def producto_delete(request, pk: int):
+    p = get_object_or_404(Producto, pk=pk)
+    p.delete()
+    messages.success(request, "Producto eliminado.")
+    if request.htmx:
+        # HX-Trigger to remove row on client side can be handled by id target
+        return HttpResponse("")  # row removed by client via swap:oob or hx-delete
+    return redirect("almacen:inventory")
 
 
 @login_required
-def checkout_take(request, pk):
-    """Mark product as taken by current user (e.g., swipe person RFID, then product EPC)."""
-    p = get_object_or_404(Producto, pk=pk)
-    if p.holder_id:
-        messages.error(request, "El producto ya está en préstamo.")
-        return redirect("inventory")
-    p.holder = request.user
-    p.holder_desde = timezone.now()
-    p.save(update_fields=["holder", "holder_desde"])
-    Ubicacion.objects.create(
-        producto=p, tipo=Ubicacion.Tipo.PRESTAMO, aula=p.aula, persona=request.user
+def prestamos_overview(request):
+    # Who currently has products (Ubicacion.estado=PERSONA)
+    ubicaciones = Ubicacion.objects.select_related("producto", "persona").filter(
+        estado="PERSONA"
     )
-    messages.success(request, "Prestamo registrado.")
-    return redirect("checkouts")
+    return render(
+        request, "almacen/prestamos_overview.html", {"ubicaciones": ubicaciones}
+    )
 
 
 @login_required
-def checkout_return(request, pk):
-    p = get_object_or_404(Producto, pk=pk)
-    if not p.holder_id:
-        messages.error(request, "Ese producto no estaba en préstamo.")
-        return redirect("inventory")
-    p.holder = None
-    p.holder_desde = None
-    p.save(update_fields=["holder", "holder_desde"])
-    Ubicacion.objects.create(
-        producto=p,
-        tipo=Ubicacion.Tipo.ESTANTERIA,
-        aula=p.aula,
-        estanteria=p.estanteria,
-        posicion=p.posicion,
+def toggle_prestamo(request, pk: int):
+    """
+    If product is on shelf -> mark as taken by current user.
+    If product is in person's hands -> if it's you, return to shelf (using product's aula/estanteria/posicion).
+    Teachers can toggle for anyone.
+    """
+    producto = get_object_or_404(
+        Producto.objects.select_related(
+            "ubicacion",
+        ),
+        pk=pk,
     )
-    messages.success(request, "Producto devuelto.")
-    return redirect("inventory")
+    try:
+        u = producto.ubicacion
+    except Ubicacion.DoesNotExist:
+        u = Ubicacion.objects.create(
+            producto=producto, estado="ESTANTE", aula=producto.aula
+        )
+
+    if u.estado == "ESTANTE":
+        u.estado = "PERSONA"
+        u.persona = request.user
+        u.tomado_en = timezone.now()
+        u.save()
+        Prestamo.objects.create(producto=producto, usuario=request.user)
+        messages.success(request, "Has tomado el producto.")
+    else:
+        if u.persona == request.user or is_teacher(request.user):
+            u.estado = "ESTANTE"
+            u.persona = None
+            u.estanteria = producto.estanteria
+            u.posicion = producto.posicion
+            u.aula = producto.aula
+            u.save()
+            # close latest loan
+            prestamo = (
+                Prestamo.objects.filter(producto=producto, devuelto_en__isnull=True)
+                .order_by("-tomado_en")
+                .first()
+            )
+            if prestamo:
+                prestamo.devuelto_en = timezone.now()
+                prestamo.save()
+            messages.success(request, "Producto devuelto al estante.")
+        else:
+            return HttpResponseBadRequest(
+                "No puedes devolver un producto que no tienes."
+            )
+    if request.htmx:
+        return inventory_row(request, producto.pk)
+    return HttpResponseRedirect(reverse("almacen:inventory"))
