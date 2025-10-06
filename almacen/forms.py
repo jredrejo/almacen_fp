@@ -18,7 +18,18 @@ class ProductoForm(forms.ModelForm):
             "fds",
         ]
         widgets = {
-            "descripcion": forms.Textarea(attrs={"rows": 3}),
+            "epc": forms.TextInput(attrs={"class": "form-control"}),
+            "nombre": forms.TextInput(attrs={"class": "form-control"}),
+            "posicion": forms.TextInput(attrs={"class": "form-control"}),
+            "n_serie": forms.TextInput(attrs={"class": "form-control"}),
+            "foto": forms.ClearableFileInput(attrs={"class": "form-control"}),
+            "aula": forms.Select(attrs={"class": "form-select"}),
+            "estanteria": forms.TextInput(attrs={"class": "form-control"}),
+            "cantidad": forms.NumberInput(
+                attrs={"class": "form-control", "step": "any"}
+            ),
+            "descripcion": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+            "fds": forms.URLInput(attrs={"class": "form-control"}),
         }
 
 

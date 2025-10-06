@@ -1,5 +1,5 @@
-{% extends "base.html" %} {% block title %}{% if edit %}Editar{% else %}Nuevo{%
-endif %} producto - Almacén{% endblock %} {% block content %}
+{% extends "base.html" %} {% block title %}{% if edit %}Editar{% else %}Nuevo
+{%endif %} producto - Almacén{% endblock %} {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-8">
         <div class="card shadow-sm">
@@ -28,39 +28,39 @@ endif %} producto - Almacén{% endblock %} {% block content %}
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Nombre</label>
-                            {{ form.nombre|add_class:"form-control" }}
+                            {{ form.nombre }}
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Aula</label>
-                            {{ form.aula|add_class:"form-select" }}
+                            {{ form.aula }}
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Estantería</label>
-                            {{ form.estanteria|add_class:"form-control" }}
+                            {{ form.estanteria }}
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Posición</label>
-                            {{ form.posicion|add_class:"form-control" }}
+                            {{ form.posicion }}
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Cantidad</label>
-                            {{ form.cantidad|add_class:"form-control" }}
+                            {{ form.cantidad }}
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Nº de serie</label>
-                            {{ form.n_serie|add_class:"form-control" }}
+                            {{ form.n_serie }}
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Foto</label>
-                            {{ form.foto|add_class:"form-control" }}
+                            {{ form.foto }}
                         </div>
                         <div class="col-12">
                             <label class="form-label">Descripción</label>
-                            {{ form.descripcion|add_class:"form-control" }}
+                            {{ form.descripcion }}
                         </div>
                         <div class="col-12">
                             <label class="form-label">FDS (URL)</label>
-                            {{ form.fds|add_class:"form-control" }}
+                            {{ form.fds }}
                         </div>
                     </div>
                     <div class="mt-3 d-flex gap-2">
