@@ -1,0 +1,47 @@
+{% extends "base.html" %} {% block title %}Aulas - Almacén{% endblock %}
+{%block content %}
+<h1 class="h4">Aulas</h1>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h6">Crear aula</h2>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label
+                            class="form-label"
+                            for="{{ form.nombre.id_for_label }}"
+                            >Nombre</label
+                        >
+                        {{ form.nombre }}
+                    </div>
+
+                    <button class="btn btn-primary">Crear</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h6">Listado</h2>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead><tr><th>Nombre</th></tr></thead>
+                        <tbody>
+                        {% for a in aulas %}
+                            <tr><td>{{ a.nombre }}</td></tr>
+                        {% empty %}
+                            <tr><td class="text-muted">No hay aulas.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

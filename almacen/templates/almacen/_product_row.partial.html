@@ -1,3 +1,4 @@
+{% load group_tags %}
 <tr id="row-{{ p.id }}">
     <td style="width: 70px">
         {% if p.foto %}
@@ -20,31 +21,34 @@
         <div>{{ p.aula }}</div>
     </td>
     <td>
-        {% if p.ubicacion and p.ubicacion.estado == 'ESTANTE' %}
+        {% if p.ubicacion %} {% if p.ubicacion.estado == 'ESTANTE' %}
         <div>Estantería: <strong>{{ p.estanteria|default:"—" }}</strong></div>
         <div class="text-muted small">
             Posición: {{ p.posicion|default:"—" }}
         </div>
-        {% elif p.ubicacion and p.ubicacion.estado == 'PERSONA' %}
+        {% else %}
         <div class="text-danger">
-            En manos de: {{
-            p.ubicacion.persona.get_full_name|default:p.ubicacion.persona.email
-            }}
+            En manos de:
+            {{ p.ubicacion.persona.get_full_name|default:p.ubicacion.persona.email  }}
         </div>
         <div class="text-muted small">{{ p.ubicacion.tomado_en }}</div>
-        {% else %}
+        {% endif %} {% else %}
         <span class="text-muted">Desconocida</span>
         {% endif %}
     </td>
-    <td>{{ p.cantidad }}</td>
     <td>
-        <span
-            class="badge {% if p.ubicacion and p.ubicacion.estado == 'PERSONA' %}bg-danger{% else %}bg-success{% endif %}"
-        >
-            {% if p.ubicacion %}{{ p.ubicacion.get_estado_display }}{% else
-            %}Desconocido{% endif %}
-        </span>
+        <div class="fw-medium">{{ p.cantidad }}</div>
     </td>
+    <td>
+        {% if p.ubicacion %} {% if p.ubicacion.estado == 'PERSONA' %}
+        <span class="badge bg-danger">En manos</span>
+        {% else %}
+        <span class="badge bg-success">En estantería</span>
+        {% endif %} {% else %}
+        <span class="badge bg-secondary">Desconocido</span>
+        {% endif %}
+    </td>
+
     <td class="text-end">
         <div class="btn-group btn-group-sm">
             <a
@@ -59,6 +63,9 @@
                 hx-post="{% url 'almacen:toggle_prestamo' p.id %}"
                 hx-target="#row-{{ p.id }}"
                 hx-swap="outerHTML"
+                hx-confirm="{% if p.taken_by %}¿Devolver '{{ p.nombre }}'?{% else %}¿Tomar '{{ p.nombre }}'?{% endif %}"
+                 data-confirm-title="{% if p.taken_by %}Devolver{% else %}Tomar{% endif %}"
+                 data-confirm-ok="{% if p.taken_by %}Devolver{% else %}Tomar{% endif %}"
             >
                 Tomar/Devolver
             </button>
@@ -68,6 +75,7 @@
                 hx-delete="{% url 'almacen:producto_delete' p.id %}"
                 hx-target="#row-{{ p.id }}"
                 hx-swap="outerHTML swap:1ms"
+                hx-confirm="¿Eliminar definitivamente '{{ p.nombre }}'?"
             >
                 Eliminar
             </button>

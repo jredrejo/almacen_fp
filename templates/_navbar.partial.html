@@ -1,62 +1,47 @@
-<!-- prettier-ignore -->
 {% load group_tags %}
 <nav class="navbar navbar-expand-lg bg-body border-bottom">
-    <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="{% url 'almacen:dashboard' %}"
-            >Almacén</a
-        >
-        <button
-            class="navbar-toggler"
-            data-bs-toggle="collapse"
-            data-bs-target="#nav"
-        >
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div id="nav" class="collapse navbar-collapse">
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'almacen:inventory' %}"
-                        >Inventario</a
-                    >
-                </li>
-                <li class="nav-item">
-                    <a
-                        class="nav-link"
-                        href="{% url 'almacen:prestamos_overview' %}"
-                        >Productos en manos</a
-                    >
-                </li>
-                {% if request.user|in_group:"ProfesoresFP" %}
-                <li class="nav-item">
-                    <a
-                        class="nav-link"
-                        href="{% url 'almacen:producto_create' %}"
-                        >Añadir producto</a
-                    >
-                </li>
-                {% endif %}
-            </ul>
-            <ul class="navbar-nav ms-auto">
-                {% if request.user.is_authenticated %}
-                <li class="nav-item">
-                    <span class="navbar-text me-3"
-                        >Hola, {% firstof request.user.first_name   request.user.email %}</span>
-                </li>
-                <li class="nav-item">
-                    <a
-                        class="btn btn-outline-secondary"
-                        href="{% url 'account_logout' %}"
-                        >Salir</a
-                    >
-                </li>
-                {% else %}
-                <li class="nav-item">
-                    <a class="btn btn-primary" href="{% url 'account_login' %}"
-                        >Entrar</a
-                    >
-                </li>
-                {% endif %}
-            </ul>
-        </div>
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="{% url 'almacen:dashboard' %}">Almacén</a>
+    <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#nav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div id="nav" class="collapse navbar-collapse">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="{% url 'almacen:inventory' %}">Inventario</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'almacen:prestamos_overview' %}">Productos en manos</a></li>
+
+        {% if request.user|in_group:"ProfesoresFP" %}
+          <li class="nav-item"><a class="nav-link" href="{% url 'almacen:producto_create' %}">Añadir producto</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'almacen:aulas' %}">Aulas</a></li>
+        {% endif %}
+      </ul>
+
+      <!-- Aula selector -->
+        <form class="d-flex me-3" method="post" action="{% url 'almacen:set_current_aula' %}">
+        {% csrf_token %}
+        <select class="form-select" name="aula_id" onchange="this.form.submit()">
+            <option value="">— Todas las aulas —</option>
+            {% for a in ctx_all_aulas %}
+            <option value="{{ a.id }}" {% if ctx_current_aula and a.id == ctx_current_aula.id %}selected{% endif %}>
+                {{ a.nombre }}
+            </option>
+            {% endfor %}
+        </select>
+        </form>
+
+      <ul class="navbar-nav">
+        {% if request.user.is_authenticated %}
+          <li class="nav-item">
+            {% with name=request.user.first_name %}
+              <span class="navbar-text me-3">Hola, {% if name %}{{ name }}{% else %}{{ request.user.email }}{% endif %}</span>
+            {% endwith %}
+          </li>
+          <li class="nav-item"><a class="btn btn-outline-secondary" href="{% url 'account_logout' %}">Salir</a></li>
+        {% else %}
+          <li class="nav-item"><a class="btn btn-primary" href="{% url 'account_login' %}">Entrar</a></li>
+        {% endif %}
+      </ul>
     </div>
+  </div>
 </nav>

@@ -12,4 +12,6 @@ urlpatterns = [
     path("producto/<int:pk>/eliminar/", views.producto_delete, name="producto_delete"),
     path("prestamos/", views.prestamos_overview, name="prestamos_overview"),
     path("toggle-prestamo/<int:pk>/", views.toggle_prestamo, name="toggle_prestamo"),
+    path("aulas/", views.aulas_list_create, name="aulas"),
+    path("set-aula/", views.set_current_aula, name="set_current_aula"),
 ]

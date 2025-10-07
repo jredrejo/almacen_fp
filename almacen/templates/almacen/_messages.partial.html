@@ -1,9 +1,32 @@
 {% if messages %}
-<div class="mb-3">
+<div id="flash-messages" class="mb-3">
     {% for message in messages %}
-    <div class="alert alert-{{ message.tags }} mb-2" role="alert">
+    <div
+        class="alert alert-{{ message.tags }} alert-dismissible fade show"
+        role="alert"
+    >
         {{ message }}
+        <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="alert"
+            aria-label="Close"
+        ></button>
     </div>
     {% endfor %}
 </div>
+<script>
+    // Auto-dismiss after 4s (keeps accessibility: user can still pin it open)
+    setTimeout(function () {
+        document
+            .querySelectorAll("#flash-messages .alert")
+            .forEach(function (el) {
+                // only close if still visible
+                if (el.classList.contains("show")) {
+                    var alert = bootstrap.Alert.getOrCreateInstance(el);
+                    alert.close();
+                }
+            });
+    }, 4000);
+</script>
 {% endif %}

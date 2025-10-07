@@ -31,6 +31,23 @@ class Producto(models.Model):
     creado = models.DateTimeField(auto_now_add=True)
     actualizado = models.DateTimeField(auto_now=True)
 
+    @property
+    def current_prestamo(self):
+        # requires Prestamo(producto=..., devuelto_en is null) to mean "currently taken"
+        return (
+            self.prestamos.filter(devuelto_en__isnull=True)
+            .select_related("usuario")
+            .first()
+        )
+
+    @property
+    def is_taken(self):
+        return self.current_prestamo is not None
+
+    @property
+    def taken_by(self):
+        return self.current_prestamo.usuario if self.current_prestamo else None
+
     class Meta:
         ordering = ["nombre"]
         verbose_name = "Producto"
@@ -44,6 +61,13 @@ class Persona(models.Model):
     """Optional profile table if you want extra fields; we just map to User."""
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="persona")
+    last_aula = models.ForeignKey(
+        "Aula",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="preferida_por",
+    )
 
     def __str__(self):
         return self.user.get_full_name() or self.user.email

@@ -10,4 +10,4 @@ def filter_inventory(qs, q: str | None):
             | Q(n_serie__icontains=q)
             | Q(descripcion__icontains=q)
         )
-    return qs.select_related("aula", "ubicacion")
+    return qs.select_related("aula", "ubicacion")  # removed aula__taller

@@ -78,6 +78,7 @@ TEMPLATES = [
                 "django.template.context_processors.media",
                 "django.template.context_processors.static",
                 "django.contrib.messages.context_processors.messages",
+                "almacen.context_processors.aula_context",
             ],
         },
     },

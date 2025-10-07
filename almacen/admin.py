@@ -1,7 +1,11 @@
 from django.contrib import admin
 from .models import Aula, Producto, Ubicacion, Prestamo
 
-admin.site.register(Aula)
+
+@admin.register(Aula)
+class AulaAdmin(admin.ModelAdmin):
+    list_display = ("nombre",)
+    search_fields = ("nombre",)
 
 
 class UbicacionInline(admin.StackedInline):

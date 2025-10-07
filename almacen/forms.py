@@ -1,8 +1,15 @@
 from django import forms
-from .models import Producto, Ubicacion
+from .models import Producto, Ubicacion, Aula
 
 
 class ProductoForm(forms.ModelForm):
+    def __init__(self, *args, fixed_aula=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fixed_aula = fixed_aula
+        if self.fixed_aula is not None:
+            # Hide/skip Aula field completely when an aula is fixed
+            self.fields.pop("aula", None)
+
     class Meta:
         model = Producto
         fields = [
@@ -39,3 +46,12 @@ class UbicacionInlineForm(forms.ModelForm):
     class Meta:
         model = Ubicacion
         fields = ["estado", "aula", "estanteria", "posicion", "persona"]
+
+
+class AulaForm(forms.ModelForm):
+    class Meta:
+        model = Aula
+        fields = ["nombre"]
+        widgets = {
+            "nombre": forms.TextInput(attrs={"class": "form-control"}),
+        }

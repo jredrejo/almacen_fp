@@ -1,4 +1,3 @@
-<!-- prettier-ignore -->
 {% load static %}
 <!doctype html>
 <html lang="es" data-bs-theme="auto">
@@ -17,9 +16,85 @@
     <body class="bg-body-tertiary">
         {% include "_navbar.partial.html" %}
         <main class="container py-4" hx-boost="true">
-            {% include "almacen/_messages.partial.html" %} {% block content %}
-            {% endblock %}
+            {% include "almacen/_messages.partial.html" %}
+            {% block content %}{% endblock %}
         </main>
+
+
+<!-- Reusable HTMX confirm modal (once per site) -->
+<div class="modal fade" id="hxConfirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmar</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <p id="hxConfirmText">¿Estás seguro?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="hxConfirmOk">Eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Single, global confirm handler for HTMX
+  document.addEventListener('htmx:confirm', function (e) {
+    e.preventDefault(); // stop the native window.confirm()
+
+    const src     = e.detail.elt; // element that initiated the request
+    const msg     = e.detail.question || '¿Continuar?';
+    const title   = src.getAttribute('data-confirm-title') || 'Confirmar';
+    const okLabel = src.getAttribute('data-confirm-ok') || 'Aceptar';
+
+    const modalEl   = document.getElementById('hxConfirmModal');
+    const titleEl   = modalEl.querySelector('.modal-title');
+    const textEl    = document.getElementById('hxConfirmText');
+    const okBtn     = document.getElementById('hxConfirmOk');
+    const modal     = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+    titleEl.textContent = title;
+    textEl.textContent  = msg;
+    okBtn.textContent   = okLabel;
+
+    const onOk = () => {
+      okBtn.removeEventListener('click', onOk);
+      modal.hide();
+      e.detail.issueRequest(true);
+    };
+    okBtn.addEventListener('click', onOk, { once: true });
+
+    const onHidden = () => {
+      okBtn.removeEventListener('click', onOk);
+      modalEl.removeEventListener('hidden.bs.modal', onHidden);
+    };
+    modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+
+    modal.show();
+  });
+</script>
+
+
+
+
         <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+        <script>
+        // añadido HTMX CSRF para evitar problemas borrando y actualizando registros
+        function getCookie(name) {
+            const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+            return m ? m.pop() : '';
+        }
+
+        // añade CSRF token a cada request HTMX
+        document.body.addEventListener('htmx:configRequest', (e) => {
+            const token = getCookie('csrftoken');
+            if (token) {
+            e.detail.headers['X-CSRFToken'] = token;
+            }
+        });
+        </script>
     </body>
 </html>

@@ -1,7 +1,10 @@
 {% extends "base.html" %} {% block title %}Inventario - Almacén{% endblock %}
 {%block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h4 mb-0">Inventario</h1>
+    <h1 class="h4 mb-0">
+    Inventario
+    {% if current_aula %}<span class="text-muted">— {{ current_aula.nombre }}</span>{% endif %}
+    </h1>
     <form class="d-flex" method="get">
         <input
             class="form-control me-2"
@@ -29,8 +32,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for p in productos %} {% include
-            "almacen/_product_row.partial.html" with p=p %} {% empty %}
+            {% for p in productos %} {% include  "almacen/_product_row.partial.html" with p=p %} {% empty %}
             <tr>
                 <td colspan="8" class="text-muted">No hay productos.</td>
             </tr>
