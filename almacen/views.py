@@ -1,3 +1,5 @@
+from datetime import timedelta
+from django.core.cache import caches
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
@@ -6,10 +8,18 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+
 from .models import Producto, Ubicacion, Prestamo, Aula, Persona
-from .forms import ProductoForm, UbicacionInlineForm, AulaForm
+from .forms import ProductoForm, AulaForm
 
 from .tables import filter_inventory
+
+# --- Configuración de Caché ---
+CACHE_KEY_FORMAT = "last_epc:{}"
+CACHE_LIFETIME_SECONDS = 30  # La ventana de tiempo para filtrar
+
+# Obtener la instancia del caché específico
+epc_cache = caches["epc_cache"]  #
 
 
 def is_teacher(user):
@@ -88,6 +98,24 @@ def producto_create(request):
         messages.error(request, "Selecciona primero un aula en el selector del menú.")
         return redirect("almacen:inventory")
 
+    # ----------------------------------------------------
+    # Lógica para obtener el EPC inicial usando Django Cache
+    # ----------------------------------------------------
+    initial_epc = None
+    if current_aula:
+        cache_key = CACHE_KEY_FORMAT.format(current_aula.pk)
+        data = epc_cache.get(cache_key)
+
+        if data and data.get("epc") and data.get("leido_en"):
+            # leido_en es un objeto datetime aware (del sensor)
+            leido_en = data["leido_en"]
+            time_limit = timezone.now() - timedelta(seconds=CACHE_LIFETIME_SECONDS)
+
+            # Solo si la lectura está dentro del límite de 30 segundos DESDE LA HORA DEL SENSOR
+            if leido_en >= time_limit:
+                initial_epc = data["epc"]
+    # ----------------------------------------------------
+
     if request.method == "POST":
         form = ProductoForm(request.POST, request.FILES, fixed_aula=current_aula)
         if form.is_valid():
@@ -107,12 +135,63 @@ def producto_create(request):
                 "almacen:inventory" if action == "list" else "almacen:producto_create"
             )
     else:
-        form = ProductoForm(fixed_aula=current_aula)
+        # Pasa el valor inicial al formulario
+        initial_data = {}
+        if initial_epc:
+            initial_data["epc"] = initial_epc
+
+        form = ProductoForm(fixed_aula=current_aula, initial=initial_data)
 
     return render(
         request,
         "almacen/producto_create.html",
         {"form": form, "current_aula": current_aula},
+    )
+
+
+@login_required
+def get_latest_epc(request):
+    """
+    Endpoint HTMX que devuelve el fragmento HTML con el último EPC leído
+    que ha cambiado en los últimos 30 segundos, incluyendo el timestamp del sensor.
+    """
+    current_aula = get_current_aula(request)
+    if not current_aula:
+        return HttpResponse(status=204)
+
+    latest_epc = ""
+    latest_time = None
+
+    if current_aula:
+        cache_key = CACHE_KEY_FORMAT.format(current_aula.pk)
+        data = epc_cache.get(cache_key)  # Obtener el diccionario del caché
+
+        if data and data.get("epc") and data.get("leido_en"):
+            leido_en = data["leido_en"]  # datetime object aware
+            time_limit = timezone.now() - timedelta(seconds=CACHE_LIFETIME_SECONDS)
+
+            # Verificar que el timestamp del sensor esté dentro de los 30 segundos
+            if leido_en >= time_limit:
+                latest_epc = data["epc"]
+                latest_time = leido_en
+
+    # El valor actual del campo EPC en el formulario, enviado por hx-vals
+    current_form_epc = request.GET.get("current_epc", "")
+
+    # Condición clave: Solo actualizamos si el EPC es NUEVO (distinto del actual) Y está dentro de la ventana de 30s.
+    if latest_epc == current_form_epc or not latest_epc:
+        return HttpResponse(
+            status=204
+        )  # 204 No Content (No hay cambios o no hay EPC válido)
+
+    # Si hay un EPC nuevo, renderizamos el partial con el aviso de tiempo.
+    return render(
+        request,
+        "almacen/_epc_input.partial.html",
+        {
+            "latest_epc": latest_epc,
+            "latest_time": latest_time,  # Esto se usa para mostrar el mensaje de aviso
+        },
     )
 
 

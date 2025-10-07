@@ -43,6 +43,11 @@
 <script>
   // Single, global confirm handler for HTMX
   document.addEventListener('htmx:confirm', function (e) {
+    // Esto previene que peticiones de polling o GET accidentales disparen el modal.
+    if (!e.detail.elt.hasAttribute('hx-confirm')) {
+      return;
+    }
+
     e.preventDefault(); // stop the native window.confirm()
 
     const src     = e.detail.elt; // element that initiated the request
@@ -60,10 +65,11 @@
     textEl.textContent  = msg;
     okBtn.textContent   = okLabel;
 
+    // Lógica para reanudar la petición si se hace clic en "OK"
     const onOk = () => {
       okBtn.removeEventListener('click', onOk);
       modal.hide();
-      e.detail.issueRequest(true);
+      e.detail.issueRequest(true); // Reanuda la petición
     };
     okBtn.addEventListener('click', onOk, { once: true });
 

@@ -1,0 +1,17 @@
+[Unit]
+Description=Django MQTT Listener
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/ruta/a/tu/proyecto
+Environment="DJANGO_SETTINGS_MODULE=tu_proyecto.settings"
+ExecStart=/ruta/a/tu/venv/bin/python manage.py mqtt_listener
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+

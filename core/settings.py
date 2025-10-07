@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
+    "django.contrib.humanize",
     # allauth
     "allauth",
     "allauth.account",
@@ -193,6 +194,26 @@ EMAIL_BACKEND = os.getenv(
 )
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "almacen@santiagoapostol.net")
 
+
+# settings.py
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",  # Usaremos la base de datos 1 para el caché
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "KEY_PREFIX": "almacen_epc",  # Prefijo para evitar colisiones con otras apps
+        },
+    },
+    "epc_cache": {  # Definimos un caché específico si solo quieres usarlo para esto
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/2",  # Usaremos la base de datos 2 (o la que prefieras)
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    },
+}
+# Usaremos "epc_cache" en el código.
 
 # Whitenoise
 STORAGES = {

@@ -42,9 +42,40 @@ uv run python manage.py shell -c "from django.contrib.auth.models import Group; 
 
 # 5) Arrancar el servidor
 uv run python manage.py runserver
-
+```
 
 
 ## Antes de arrancar el servidor en producción recuerda:
 - cambiar DEBUG=1 por DEBUG=0 en .env
 - ejecutar `python manage.py collectstatic`
+
+
+### El formato de los mensajes MQTT será:
+```json
+{
+  "epc": "3034257BF7194E4000000001",
+  "aula_id": "3",
+  "timestamp": "2025-10-07T10:30:00"
+}
+```
+
+## para la gestión de los mensajes que llegan mediante MQTT
+- Instalar redis `sudo apt install redis-server`
+- Instalar y configurar mosquitto `sudo apt install mosquitto`
+- Instalar y configurar servicio mqtt-listener:
+ - /etc/systemd/system/mqtt-listener.service
+ - sudo systemctl daemon-reload
+ - sudo systemctl enable mqtt-listener
+ - sudo systemctl start mqtt-listener
+ - sudo systemctl status mqtt-listener
+
+## verificar funcionamiento:
+```bash
+# Ver logs del listener
+sudo journalctl -u mqtt-listener -f
+
+# O con supervisor
+sudo tail -f /var/log/mqtt-listener.log
+# Publicar un EPC de prueba
+mosquitto_pub -h localhost -t "rfid/3/epc" -m '{"epc": "TEST123456", "aula_id": "3"}'
+```

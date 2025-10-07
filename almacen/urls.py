@@ -14,4 +14,6 @@ urlpatterns = [
     path("toggle-prestamo/<int:pk>/", views.toggle_prestamo, name="toggle_prestamo"),
     path("aulas/", views.aulas_list_create, name="aulas"),
     path("set-aula/", views.set_current_aula, name="set_current_aula"),
+    path("producto/nuevo/", views.producto_create, name="producto_create"),
+    path("get-latest-epc/", views.get_latest_epc, name="get_latest_epc"),
 ]

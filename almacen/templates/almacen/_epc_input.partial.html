@@ -1,0 +1,25 @@
+{% load i18n %} {% load humanize %}
+
+<div id="epc-input-container">
+    <label class="form-label" for="id_epc">EPC (RFID)</label>
+
+    <input
+        type="text"
+        name="epc"
+        value="{{ latest_epc }}"
+        class="form-control"
+        id="id_epc"
+        required
+        maxlength="96"
+    />
+
+    {% if latest_time %}
+    <div class="form-text text-muted">
+        <i class="fas fa-rss"></i> EPC actualizado: {{ latest_epc }} a las **{{ latest_time|date:"H:i:s" }}**
+    </div>
+    {% else %}
+    <div class="form-text">
+        Pasa el lector junto al producto para rellenar el EPC.
+    </div>
+    {% endif %}
+</div>

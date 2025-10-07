@@ -18,12 +18,33 @@
         <form method="post" enctype="multipart/form-data" hx-boost="false">
           {% csrf_token %}
           <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label" for="{{ form.epc.id_for_label }}">EPC (RFID)</label>
-              {{ form.epc }}
-              <div class="form-text">Pasa el lector junto al producto para rellenar el EPC.</div>
-            </div>
 
+            <div class="col-md-6">
+                {% if not edit %}
+                <div
+                    id="epc-input-container"
+                    hx-get="{% url 'almacen:get_latest_epc' %}"
+                    hx-trigger="load, every 5s"
+                    hx-swap="outerHTML"
+                    hx-target="#epc-input-container"
+                    {# Envía el valor actual para que el backend sepa si hay un cambio #}
+                    hx-vals='{"current_epc": "{{ form.epc.value|default:'' }}"}'
+                    {# Deshabilita la confirmación para este elemento, aunque no funcionó, es la práctica correcta. #}
+                    hx-disable-features="confirm"
+                >
+                    <label class="form-label" for="{{ form.epc.id_for_label }}">EPC (RFID)</label>
+                    {{ form.epc }}
+                    <div class="form-text">Pasa el lector junto al producto para rellenar el EPC.</div>
+                    {% for error in form.epc.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <label class="form-label" for="{{ form.epc.id_for_label }}">EPC (RFID)</label>
+                {{ form.epc }}
+                <div class="form-text">El campo EPC está fijo al editar.</div>
+                {% endif %}
+            </div>
             <div class="col-md-6">
               <label class="form-label" for="{{ form.nombre.id_for_label }}">Nombre</label>
               {{ form.nombre }}
@@ -85,4 +106,14 @@
     </div>
   </div>
 </div>
+
+<script>
+    // Centra el foco en el campo 'nombre' al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+        const nombreInput = document.getElementById('{{ form.nombre.id_for_label }}');
+        if (nombreInput) {
+            nombreInput.focus();
+        }
+    });
+</script>
 {% endblock %}
