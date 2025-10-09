@@ -22,7 +22,7 @@ load_dotenv(BASE_DIR / ".env")
 DEBUG = os.getenv("DEBUG", "1") == "1"
 SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-key")
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
-
+USE_GOOGLE_AUTH = os.getenv("USE_GOOGLE_AUTH", "1") == "1"
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -41,13 +41,14 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
-    "allauth.socialaccount.providers.google",
     # third-party
     "django_htmx",
     "template_partials",
     # app
     "almacen",
 ]
+if USE_GOOGLE_AUTH:
+    INSTALLED_APPS.append("allauth.socialaccount.providers.google")
 
 SITE_ID = 1
 
@@ -162,20 +163,23 @@ SOCIALACCOUNT_LOGIN_ON_GET = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_QUERY_EMAIL = True
 
-SOCIALACCOUNT_PROVIDERS = {
-    "google": {
-        "APP": {
-            "client_id": os.getenv("GOOGLE_CLIENT_ID", ""),
-            "secret": os.getenv("GOOGLE_CLIENT_SECRET", ""),
-            "key": "",
-        },
-        # Enforce Workspace domain
-        "HOSTED_DOMAIN": os.getenv("GOOGLE_HOSTED_DOMAIN", "santiagoapostol.net"),
-        "prompt": "select_account",
-        "LOGIN_HINT": "santiagoapostol.net",
-        "SCOPE": ["profile", "email"],
+SOCIALACCOUNT_PROVIDERS = {}
+
+if USE_GOOGLE_AUTH:
+    SOCIALACCOUNT_PROVIDERS = {
+        "google": {
+            "APP": {
+                "client_id": os.getenv("GOOGLE_CLIENT_ID", ""),
+                "secret": os.getenv("GOOGLE_CLIENT_SECRET", ""),
+                "key": "",
+            },
+            # Enforce Workspace domain
+            "HOSTED_DOMAIN": os.getenv("GOOGLE_HOSTED_DOMAIN", "santiagoapostol.net"),
+            "prompt": "select_account",
+            "LOGIN_HINT": "santiagoapostol.net",
+            "SCOPE": ["profile", "email"],
+        }
     }
-}
 
 
 # Message tags for Bootstrap
