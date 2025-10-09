@@ -12,6 +12,8 @@ Almacén{% endblock %} {% block content %}
                 <a
                     class="btn btn-outline-dark w-100"
                     href="{% provider_login_url 'google' %}"
+                    hx-boost="false"
+                    data-turbo="false"
                 >
                     <img
                         alt=""

@@ -1,4 +1,6 @@
 from datetime import timedelta
+from sqlite3.dbapi2 import Time
+import time
 from django.core.cache import caches
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -110,7 +112,7 @@ def producto_create(request):
             # leido_en es un objeto datetime aware (del sensor)
             leido_en = data["leido_en"]
             time_limit = timezone.now() - timedelta(seconds=CACHE_LIFETIME_SECONDS)
-
+            print(leido_en, time_limit)
             # Solo si la lectura está dentro del límite de 30 segundos DESDE LA HORA DEL SENSOR
             if leido_en >= time_limit:
                 initial_epc = data["epc"]
@@ -158,7 +160,6 @@ def get_latest_epc(request):
     current_aula = get_current_aula(request)
     if not current_aula:
         return HttpResponse(status=204)
-
     latest_epc = ""
     latest_time = None
 

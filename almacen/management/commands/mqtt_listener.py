@@ -27,6 +27,19 @@ except KeyError:
     # Si 'epc_cache' no está definido, usamos el default
     epc_cache = caches["default"]
 
+"""
+Para probarlo en un terminal:
+> python manage.py shell
+from django.core.cache import caches
+epc_cache = caches["epc_cache"]
+cache_key ="last_epc:1"  # aula con id=1
+from django.utils import timezone
+from datetime import datetime
+leido_en = datetime.fromisoformat("2025-10-09 20:49:20")
+epc_cache.set(cache_key, {"epc": "9121212121", "leido_en":timezone.make_aware(leido_en)}, timeout=100)
+epc_cache.get(cache_key)
+"""
+
 
 class Command(BaseCommand):
     help = "Escucha mensajes MQTT para EPC de RFID. Espera payload JSON con epc, aula_id y timestamp."
