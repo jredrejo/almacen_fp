@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "r200.h"
+#include "R200.h"
 
 // Constructor
 R200::R200() {};
@@ -235,8 +235,12 @@ bool R200::receiveData(unsigned long timeOut){
     while (_serial->available()) {
       uint8_t b = _serial->read();
       if(bytesReceived > RX_BUFFER_LENGTH - 1) {
+        // Buffer overflow - flush everything and start over
         Serial.print("Error: Max Buffer Length Exceeded!");
         flush();
+        bytesReceived = 0;
+        // Clear buffer again
+        for (int i = 0; i < RX_BUFFER_LENGTH; i++) { _buffer[i] = 0; }
         return false;
       }
       else {
@@ -251,6 +255,13 @@ bool R200::receiveData(unsigned long timeOut){
   } else {
       return false;
   }
+
+  // Timeout reached without valid frame
+  if (bytesReceived > 0) {
+    // Flush remaining data in serial buffer
+    flush();
+  }
+
   return false;
 }
 

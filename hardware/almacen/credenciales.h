@@ -1,9 +1,10 @@
-//Credenciales del almacen
-String clientId  = "almacen_1";
-
+// Credenciales del almacen
+const char* clientId = "almacen_1";
 // Introduce los valores de tu red
-const char* ssid = "TP-Link_AF72";               //Nombre de la Red WiFi
-const char* password = "37768409";                 //Contraseña del WiFi
+const char* password = "xxxxx";
+const char* ssid = "xxxxxxx";
 
-//Credenciales del Broker MQTT
-const char* mqtt_server = "broker.mqtt-dashboard.com";       //Dirección del Broker MQTT
+// Credenciales del Broker MQTT
+const char* mqtt_server = "192.168.0.85";
+const char* mqttUser = "xxxx";
+const char* mqttPassword = "xxxx";
