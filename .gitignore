@@ -176,3 +176,5 @@ almacen_fp.sqlite3-wal
 uv.lock
 staticfiles/
 media/
+
+hardware/almacen/credenciales.h
