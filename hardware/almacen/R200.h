@@ -7,52 +7,59 @@
 #include <stdint.h>
 #include <Arduino.h>
 
-#define RX_BUFFER_LENGTH 256
+#define RX_BUFFER_LENGTH 512
 
 class R200 {
 
-  private:
-    HardwareSerial *_serial;
-    uint8_t _buffer[RX_BUFFER_LENGTH] = {0};
-    uint8_t calculateCheckSum(uint8_t *buffer);
-    uint16_t arrayToUint16(uint8_t *array);
-    bool parseReceivedData();
-    bool dataIsValid();
-    bool receiveData(unsigned long timeOut = 500);
-    void dumpReceiveBufferToSerial();
-    uint8_t flush();
+private:
+  HardwareSerial *_serial;
+  uint8_t _buffer[RX_BUFFER_LENGTH] = { 0 };
+  uint8_t calculateCheckSum(uint8_t *buffer);
+  uint16_t arrayToUint16(uint8_t *array);
+  bool parseReceivedData();
+  bool dataIsValid();
+  bool receiveData(unsigned long timeOut = 500);
+  void dumpReceiveBufferToSerial();
+  uint8_t flush();
 
-    const uint8_t blankUid[12] = {0};
+  const uint8_t blankUid[12] = { 0 };
 
-  public:
-    R200();
+public:
+  R200();
 
-    uint8_t uid[12] = {0};
+  uint8_t uid[12] = { 0 };
 
-    bool begin(HardwareSerial *serial = &Serial2, int baud = 115200, uint8_t RxPin = 16, uint8_t TxPin = 17);
-    void loop();
-    void poll();
-    void setMultiplePollingMode(bool enable=true);
-    void dumpModuleInfo();
-    bool dataAvailable();
+  bool begin(HardwareSerial *serial = &Serial2, int baud = 115200, uint8_t RxPin = 16, uint8_t TxPin = 17);
+  void loop();
+  void poll();
+  void setMultiplePollingMode(bool enable = true);
+  void dumpModuleInfo();
+  bool dataAvailable();
 
-    //bool newCardPresent();
-    //bool isCardPresent();
-    void dumpUIDToSerial();
+  //bool newCardPresent();
+  //bool isCardPresent();
+  void dumpUIDToSerial();
+
+  // Power management functions
+  float getPower();
+  bool setPower(float power);
+
+  // Demodulator parameter functions
+  bool getDemodulatorParams(uint8_t &mixer_g, uint8_t &if_g, uint16_t &thrd);
+  bool setDemodulatorParams(uint8_t mixer_g, uint8_t if_g, uint16_t thrd);
 
 
-
- // Commands sent to the reader, and responses received back, are sent as data frames, e.g.
- // Header | Type | Command | ParamLength (2bytes) | Parameter(s) | Checksum | End
- //   AA   |  00  |   07    |      00 03           |   04 02 05   |    15    | DD
- //
- // Frames always start with the header value 0xAA
- // Type indicates a command to the reader (0x00), or a response (0x01), or notification (0x02) back from it
- // Command is the instruction to be performed, or the response from that instruction
- // ParamLength gives 2-byte (MSB then LSB) number of parameters being passed in the frame
- // Params may be zero or more
- // Checksum is the LSB of the sum of bytes from the type to the last instruction parameter (i.e. excluding Frame Header)
- // Frames always end with the tail value 0xDD
+  // Commands sent to the reader, and responses received back, are sent as data frames, e.g.
+  // Header | Type | Command | ParamLength (2bytes) | Parameter(s) | Checksum | End
+  //   AA   |  00  |   07    |      00 03           |   04 02 05   |    15    | DD
+  //
+  // Frames always start with the header value 0xAA
+  // Type indicates a command to the reader (0x00), or a response (0x01), or notification (0x02) back from it
+  // Command is the instruction to be performed, or the response from that instruction
+  // ParamLength gives 2-byte (MSB then LSB) number of parameters being passed in the frame
+  // Params may be zero or more
+  // Checksum is the LSB of the sum of bytes from the type to the last instruction parameter (i.e. excluding Frame Header)
+  // Frames always end with the tail value 0xDD
 
   // Position of elements in the frame definition, as offset from the header
   enum R200_FrameStructure : byte {
@@ -80,7 +87,7 @@ class R200 {
   };
 
   // 35.
-	enum R200_Command : byte {
+  enum R200_Command : byte {
     CMD_GetModuleInfo = 0x03,
     CMD_SinglePollInstruction = 0x22,
     CMD_MultiplePollInstruction = 0x27,
@@ -93,7 +100,7 @@ class R200 {
     CMD_LockLabel = 0x82,
     CMD_KillTag = 0x65,
     CMD_GetQueryParameters = 0x0D,
-    CMD_SetQueryParameters= 0x0E,
+    CMD_SetQueryParameters = 0x0E,
     CMD_SetWorkArea = 0x07,
     CMD_SetWorkingChannel = 0xAB,
     CMD_GetWorkingChannel = 0xAA,
