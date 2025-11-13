@@ -1,23 +1,21 @@
-void reconexion() 
-{
+void reconexion() {
 
   //Ejecuta mientras no esté reconectado
-  while (!client.connected()) 
-  { 
-    #ifdef DEBUG
+  while (!client.connected()) {
+#ifdef DEBUG
     Serial.print("Esperando conexion MQTT...");
-    #endif
-    
-    // Intentar conectar
-    // if (client.connect(clientId.c_str(), mqttUser, mqttPassword)) 
-    if (client.connect(clientId, mqttUser, mqttPassword))
-    {
-      #ifdef DEBUG
-      Serial.println("Conectado");
-      #endif
-      char mensaje[40];
+#endif
 
-      snprintf(mensaje, sizeof(mensaje), "El %s se ha conectado", clientId);      
+    // Intentar conectar
+    // if (client.connect(clientId.c_str(), mqttUser, mqttPassword))
+    if (client.connect(clientId, mqttUser, mqttPassword)) {
+#ifdef DEBUG
+      Serial.println("Conectado");
+#endif
+      char timestamp[32];
+      obtenerFechaHora(timestamp, sizeof(timestamp));
+      char mensaje[72];
+      snprintf(mensaje, sizeof(mensaje), "%s: El %s se ha conectado", timestamp, clientId);
       // sprintf(mensaje, "El %s se ha conectado", clientId);
       // Al conectarse publica un comentario al topic "sistema"
       client.publish("rfid/sistema", mensaje);
@@ -25,14 +23,12 @@ void reconexion()
       // char sub[16];
       // sprintf(sub, "recepcion/%s", clientId);
       // client.subscribe(sub);                    //Subscrito al topic recepcion/[almacen_x]
-    } 
-    else 
-    {
-      #ifdef DEBUG
+    } else {
+#ifdef DEBUG
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.println(" Intentalo de nuevo en 5 segundos");
-      #endif
+#endif
       //Espera 5 segundos antes de intentarlo de nuevo
       delay(5000);
     }

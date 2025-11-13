@@ -13,20 +13,19 @@
 #include <PubSubClient.h>  //Librería para uso de MQTT https://github.com/knolleary/pubsubclient
 #include "R200.h"          //Librería para el uso del RFID R200 https://github.com/playfultechnology/arduino-rfid-R200
 #include <WiFiUdp.h>
-#include <NTPClient.h>    // para ponerlo en hora a través de Internet
-#include <Timezone.h>  // para el cambio de hora
+#include <NTPClient.h>  // para ponerlo en hora a través de Internet
+#include <Timezone.h>   // para el cambio de hora
 WiFiClient esp32Client;
 PubSubClient client(esp32Client);
 R200 rfid;
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000); // Sin offset, porque se hará con Timezone
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);  // Sin offset, porque se hará con Timezone
 
 
-// Definición reglas horario de verano (Ejemplo Europa Central)
-TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 120}; // Horario verano UTC+2h
-TimeChangeRule CET = {"CET", Last, Sun, Oct, 3, 60};    // Horario normal UTC+1h
-Timezone CE(CEST, CET);
-
+// Definición reglas horario de verano para España
+TimeChangeRule summerTime = { "CEST", Last, Sun, Mar, 1, 120 };
+TimeChangeRule winterTime = { "CET", Last, Sun, Oct, 1, 60 };
+Timezone spain(summerTime, winterTime);
 //Comentar esta linea para eliminar el modo DEBUG
 #define DEBUG 1
 
@@ -62,10 +61,19 @@ void setup() {
   Serial.println("Iniciado el servidor HTTP");
 #endif
   timeClient.begin();
-  timeClient.setTimeOffset(7200); // GMT + 2
   timeClient.update();
   setTime(timeClient.getEpochTime());
- rfid.dumpModuleInfo();
+  rfid.dumpModuleInfo();
+  delay(100);
+  while (rfid.dataAvailable()) {
+    rfid.loop();  // Procesamos toda la respuesta pendiente
+  }
+  rfid.setPower(potenciaAntena);  // La potencia dependerá del alcance deseado
+  uint8_t new_mixer_g = 2;        //2=6dB, 3=9dB.. 6=16dB
+  uint8_t new_if_g = 6;           //0=12dB,6=36dB,7=40dB
+  uint16_t new_thrd = 176;
+  //Mixer Gain, IF amplifier gain, Signal demodulation threshold
+  rfid.setDemodulatorParams(new_mixer_g, new_if_g, new_thrd);
 
 
 
@@ -78,21 +86,28 @@ void setup() {
 #endif
   client.setCallback(callback);  //Define al función de callback para la recepción de mensajes MQTT
 
- delay(1000);
- //rfid.setMultiplePollingMode(true);
- delay(100);
-
+  rfid.setMultiplePollingMode(true);
+  delay(100);
 }
 unsigned long lastResetTime = 0;
 unsigned long lastDebugTime = 0;
-uint8_t lastUid[12] = {0};  // Para detectar cambios de tarjeta
+uint8_t lastUid[12] = { 0 };  // Para detectar cambios de tarjeta
 
 
-void uid_to_string(uint8_t *uid, char *str) {
+void uid_to_string(uint8_t* uid, char* str) {
   for (int i = 0; i < 12; i++) {
-    sprintf(&str[i*2], "%02X", uid[i]);
+    sprintf(&str[i * 2], "%02X", uid[i]);
   }
   str[24] = '\0';
+}
+
+
+void obtenerFechaHora(char* buffer, size_t bufferSize) {
+  time_t utc = now();
+  time_t local = spain.toLocal(utc);
+  // Convertir time_t a struct tm
+  struct tm* timeinfo = localtime(&local);
+  strftime(buffer, bufferSize, "%Y-%m-%d %H:%M:%S", timeinfo);
 }
 
 
@@ -109,12 +124,12 @@ void loop() {
 
 
 
- // IMPORTANTE: Procesar datos del RFID en cada iteración
+  // IMPORTANTE: Procesar datos del RFID en cada iteración
   // El lector enviará datos continuamente en multiple polling mode
   rfid.loop();
 
   // Verificar si hay una tarjeta presente
-  const uint8_t blankUid[12] = {0};
+  const uint8_t blankUid[12] = { 0 };
 
   if (memcmp(rfid.uid, blankUid, 12) != 0) {
     // Hay una tarjeta detectada
