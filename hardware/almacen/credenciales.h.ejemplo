@@ -1,6 +1,3 @@
-// Credenciales del almacen
-const char* clientId = "almacen_1";
-const float potenciaAntena = 19.0;  //Entre 15 y 26 dBm
 // Introduce los valores de tu red
 const char* password = "tu_password_wifi";
 const char* ssid = "tu_essid";

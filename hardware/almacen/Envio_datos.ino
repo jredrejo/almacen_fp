@@ -10,7 +10,8 @@ void envio_datos(uint8_t* uid) {
 
   char payload[256];
   snprintf(payload, sizeof(payload),
-           "{\"aula_id\":1,\"epc\":\"%s\",\"timestamp\":\"%s\"}",
+           "{\"aula_id\":\"%s\",\"epc\":\"%s\",\"timestamp\":\"%s\"}",
+           aulaId,
            hex_uid,
            timestamp);
 

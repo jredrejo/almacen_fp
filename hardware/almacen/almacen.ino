@@ -9,6 +9,7 @@
 
 //Definición de librerías y elementos externos
 #include "credenciales.h"
+#include "opciones.h"
 #include <WiFi.h>          //Librería para la conexión a la wifi
 #include <PubSubClient.h>  //Librería para uso de MQTT https://github.com/knolleary/pubsubclient
 #include "R200.h"          //Librería para el uso del RFID R200 https://github.com/playfultechnology/arduino-rfid-R200
@@ -26,6 +27,11 @@ NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);  // Sin offset, porque s
 TimeChangeRule summerTime = { "CEST", Last, Sun, Mar, 1, 120 };
 TimeChangeRule winterTime = { "CET", Last, Sun, Oct, 1, 60 };
 Timezone spain(summerTime, winterTime);
+
+unsigned long lastDebugTime = 0;
+unsigned long lastCleanupTime = 0;
+uint8_t lastUid[12] = { 0 };  // Para detectar cambios de tarjeta
+
 //Comentar esta linea para eliminar el modo DEBUG
 #define DEBUG 1
 
@@ -64,6 +70,7 @@ void setup() {
   timeClient.update();
   setTime(timeClient.getEpochTime());
   rfid.dumpModuleInfo();
+  initUidBuffer();
   delay(100);
   while (rfid.dataAvailable()) {
     rfid.loop();  // Procesamos toda la respuesta pendiente
@@ -81,17 +88,10 @@ void setup() {
   Serial.println("Configuramos mqtt: ");
 #endif
   client.setServer(mqtt_server, 1883);  //Fija la dirección y puerto del servidor MQTT
-#ifdef DEBUG
-  Serial.println("Configuramos mqtt callback: ");
-#endif
-  client.setCallback(callback);  //Define al función de callback para la recepción de mensajes MQTT
 
   rfid.setMultiplePollingMode(true);
   delay(100);
 }
-unsigned long lastResetTime = 0;
-unsigned long lastDebugTime = 0;
-uint8_t lastUid[12] = { 0 };  // Para detectar cambios de tarjeta
 
 
 void uid_to_string(uint8_t* uid, char* str) {
@@ -122,6 +122,11 @@ void loop() {
   }
   client.loop();
 
+  // Limpiamos el buffer periódicamente
+  if (millis() - lastCleanupTime > 2000) {
+    cleanupUidBuffer();
+    lastCleanupTime = millis();
+  }
 
 
   // IMPORTANTE: Procesar datos del RFID en cada iteración
@@ -146,8 +151,24 @@ void loop() {
       // Guardar el UID actual
       memcpy(lastUid, rfid.uid, 12);
 
-      // Enviar datos por MQTT
-      envio_datos(rfid.uid);
+
+      // Check if UID is in deduplication buffer
+      if (!isUidInBuffer(rfid.uid)) {
+        // UID not in buffer or expired - send data
+#ifdef DEBUG
+        Serial.println("UID not in buffer - sending MQTT message");
+#endif
+        // Enviar datos por MQTT
+        envio_datos(rfid.uid);
+
+        // Add UID to buffer
+        addUidToBuffer(rfid.uid);
+      } else {
+        // UID is in buffer and still valid - skip sending
+#ifdef DEBUG
+        Serial.println("UID in buffer (within TTL) - skipping MQTT publish");
+#endif
+      }
     }
   } else {
     // No hay tarjeta (limpieza)
