@@ -19,10 +19,11 @@ from django.contrib.messages import constants as messages
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
-DEBUG = os.getenv("DEBUG", "1") == "1"
+DEBUG = os.getenv("DEBUG", "False") == "True"
 SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-key")
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
-USE_GOOGLE_AUTH = os.getenv("USE_GOOGLE_AUTH", "1") == "1"
+ENVIRONMENT = os.getenv("ENVIRONMENT", "local")  # solo informativo
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -39,16 +40,15 @@ INSTALLED_APPS = [
     "django.contrib.humanize",
     # allauth
     "allauth",
-    "allauth.account",
+    "allauth.account",  # login normal (email/username + pass) pero mejorado
     "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
     # third-party
     "django_htmx",
     "template_partials",
     # app
     "almacen",
 ]
-if USE_GOOGLE_AUTH:
-    INSTALLED_APPS.append("allauth.socialaccount.providers.google")
 
 SITE_ID = 1
 
@@ -145,6 +145,13 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+
+# Configuración de django-allauth
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_EMAIL_VERIFICATION = "none"  # cambia a "mandatory" si quieres verificación
+
+
 # Authentication
 AUTHENTICATION_BACKENDS = (
     "django.contrib.auth.backends.ModelBackend",
@@ -152,35 +159,43 @@ AUTHENTICATION_BACKENDS = (
 )
 
 LOGIN_REDIRECT_URL = "almacen:dashboard"
-LOGOUT_REDIRECT_URL = "account_login"
+LOGOUT_REDIRECT_URL = "/"
+LOGIN_URL = "/accounts/login/"
 
 # allauth account settings (as requested)
-ACCOUNT_LOGIN_METHODS = ["email"]  # or ["email", "username"] if you want both
-ACCOUNT_EMAIL_VERIFICATION = "none"
-ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 
 SOCIALACCOUNT_LOGIN_ON_GET = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_QUERY_EMAIL = True
 
-SOCIALACCOUNT_PROVIDERS = {}
 
-if USE_GOOGLE_AUTH:
-    SOCIALACCOUNT_PROVIDERS = {
-        "google": {
-            "APP": {
-                "client_id": os.getenv("GOOGLE_CLIENT_ID", ""),
-                "secret": os.getenv("GOOGLE_CLIENT_SECRET", ""),
-                "key": "",
-            },
-            # Enforce Workspace domain
-            "HOSTED_DOMAIN": os.getenv("GOOGLE_HOSTED_DOMAIN", "santiagoapostol.net"),
-            "prompt": "select_account",
-            "LOGIN_HINT": "santiagoapostol.net",
-            "SCOPE": ["profile", "email"],
-        }
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "APP": {
+            "client_id": os.getenv("GOOGLE_CLIENT_ID", ""),
+            "secret": os.getenv("GOOGLE_CLIENT_SECRET", ""),
+            "key": "",
+        },
+        # Enforce Workspace domain
+        "HOSTED_DOMAIN": os.getenv("GOOGLE_HOSTED_DOMAIN", "santiagoapostol.net"),
+        "prompt": "select_account",
+        "LOGIN_HINT": "santiagoapostol.net",
+        "SCOPE": ["profile", "email"],
+        "AUTH_PARAMS": {
+            "access_type": "online",
+        },
+        # Forzar dominio de Google Workspace
+        "OAUTH2_PARAMS": {
+            "hd": "santiagoapostol.net",
+        },
     }
+}
 
+GOOGLE_WORKSPACE_ADMIN = (
+    "coortic@santiagoapostol.net"  # cuenta admin que se usará como sujeto
+)
+GOOGLE_SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "service-account.json"
+GOOGLE_PROFESORES_OU = "/Profesores"
 
 # Message tags for Bootstrap
 MESSAGE_TAGS = {
@@ -227,6 +242,13 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
 }
 
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://fp.santiagoapostol.net",
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+]
+
 # Security settings for production
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
@@ -237,3 +259,6 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https"
+else:
+    ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http"

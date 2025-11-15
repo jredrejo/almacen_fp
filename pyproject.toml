@@ -19,6 +19,7 @@ dependencies = [
   "paho-mqtt>=2.1.0",
   "python-jwt>=4.1.0",
   "pyjwt[crypto]>=2.8",
+  "dotenv>=0.9.9",
 ]
 
 [dependency-groups]

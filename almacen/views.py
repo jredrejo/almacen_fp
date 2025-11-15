@@ -3,14 +3,14 @@ from sqlite3.dbapi2 import Time
 import time
 from django.core.cache import caches
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-
+from .decorators import profesores_required
 from .models import Producto, Ubicacion, Prestamo, Aula, Persona
 from .forms import ProductoForm, AulaForm
 
@@ -92,8 +92,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 
 
-@login_required
-@user_passes_test(is_teacher)
+@profesores_required
 def producto_create(request):
     current_aula = get_current_aula(request)
     if not current_aula:
@@ -196,8 +195,7 @@ def get_latest_epc(request):
     )
 
 
-@login_required
-@user_passes_test(is_teacher)
+@profesores_required
 def producto_edit(request, pk: int):
     p = get_object_or_404(Producto, pk=pk)
     if request.method == "POST":
@@ -225,8 +223,7 @@ def producto_edit(request, pk: int):
     return render(request, "almacen/producto_create.html", {"form": form, "edit": True})
 
 
-@login_required
-@user_passes_test(is_teacher)
+@profesores_required
 def producto_delete(request, pk: int):
     p = get_object_or_404(Producto, pk=pk)
     p.delete()
@@ -315,7 +312,7 @@ def set_current_aula(request):
     return redirect(request.META.get("HTTP_REFERER", "almacen:inventory"))
 
 
-@login_required
+@profesores_required
 def inventory(request):
     current_aula = get_current_aula(request)
     qs = Producto.objects.all()
@@ -330,8 +327,7 @@ def inventory(request):
     return render(request, "almacen/inventory.html", ctx)
 
 
-@login_required
-@user_passes_test(is_teacher)
+@profesores_required
 def aulas_list_create(request):
     # Show list + form on same page
     if request.method == "POST":
