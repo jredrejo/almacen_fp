@@ -150,7 +150,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_EMAIL_VERIFICATION = "none"  # cambia a "mandatory" si quieres verificación
-
+ACCOUNT_LOGOUT_ON_GET = True  # cierra sesión al hacer GET
 
 # Authentication
 AUTHENTICATION_BACKENDS = (

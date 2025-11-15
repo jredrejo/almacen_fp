@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from datetime import datetime
 import paho.mqtt.client as mqtt
 
@@ -12,10 +13,13 @@ from almacen.models import Aula
 logger = logging.getLogger(__name__)
 
 # --- Configuración del Broker ---
-MQTT_BROKER = "localhost"
-MQTT_PORT = 1883
+MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
+MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
+MQTT_USER = os.getenv("MQTT_USER", "")
+MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", "")
 # El topic puede ser general, por ejemplo 'rfid/lectura/#'
-MQTT_TOPIC = "rfid/lectura/#"
+MQTT_TOPIC = "rfid/#"
+MQTT_TOPIC_READINGS = "rfid/lectura"
 # --- Configuración de Redis/Caché ---
 CACHE_TIMEOUT_SECONDS = 35
 CACHE_KEY_FORMAT = "last_epc:{}"
@@ -47,6 +51,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         logger.info("Iniciando el listener MQTT...")
         client = mqtt.Client()
+        if MQTT_USER and MQTT_PASSWORD:
+            client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
         client.on_connect = self.on_connect
         client.on_message = self.on_message
 
@@ -69,7 +75,11 @@ class Command(BaseCommand):
         """Callback al recibir un mensaje. Espera un payload JSON."""
         try:
             payload_str = msg.payload.decode("utf-8")
-
+            if MQTT_TOPIC_READINGS not in msg.topic:
+                logger.warning(
+                    f"Mensaje recibido: {payload_str} en topic no usado para EPC: {msg.topic}"
+                )
+                return
             try:
                 data = json.loads(payload_str)
             except json.JSONDecodeError:
