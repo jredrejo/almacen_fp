@@ -11,6 +11,7 @@ from almacen.models import Aula
 
 # Obtener un logger con el nombre del módulo/comando
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 # --- Configuración del Broker ---
 MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")

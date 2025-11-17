@@ -5,3 +5,6 @@ class AlmacenConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "almacen"
     verbose_name = "Almacén"
+
+    def ready(self):
+        import almacen.signals  # noqa

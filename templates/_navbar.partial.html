@@ -14,6 +14,7 @@
         {% if request.user|in_group:"ProfesoresFP" %}
           <li class="nav-item"><a class="nav-link" href="{% url 'almacen:producto_create' %}">Añadir producto</a></li>
           <li class="nav-item"><a class="nav-link" href="{% url 'almacen:aulas' %}">Aulas</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'almacen:persona_assign_epc' %}">Asignar llavero</a></li>
         {% endif %}
       </ul>
 

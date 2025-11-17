@@ -16,4 +16,5 @@ urlpatterns = [
     path("set-aula/", views.set_current_aula, name="set_current_aula"),
     path("producto/nuevo/", views.producto_create, name="producto_create"),
     path("get-latest-epc/", views.get_latest_epc, name="get_latest_epc"),
+    path("persona/asignar-epc/", views.persona_assign_epc, name="persona_assign_epc"),
 ]

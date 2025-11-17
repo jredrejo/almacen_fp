@@ -13,6 +13,7 @@ from django.views.decorators.http import require_POST
 from .decorators import profesores_required
 from .models import Producto, Ubicacion, Prestamo, Aula, Persona
 from .forms import ProductoForm, AulaForm
+from .forms import PersonaEPCForm
 
 from .tables import filter_inventory
 
@@ -340,3 +341,40 @@ def aulas_list_create(request):
         form = AulaForm()
     aulas = Aula.objects.all().order_by("nombre")
     return render(request, "almacen/aulas.html", {"form": form, "aulas": aulas})
+
+
+
+@profesores_required
+def persona_assign_epc(request):
+    # ----------------------------------------------------
+    # Lógica para obtener el EPC inicial usando Django Cache
+    # ----------------------------------------------------
+    initial_epc = ""
+    # We don't need current_aula here, EPC is global for personas
+    cache_key = CACHE_KEY_FORMAT.format(1)  # Using a fixed key for now
+    data = epc_cache.get(cache_key)
+
+    if data and data.get("epc") and data.get("leido_en"):
+        leido_en = data["leido_en"]
+        time_limit = timezone.now() - timedelta(seconds=CACHE_LIFETIME_SECONDS)
+        if leido_en >= time_limit:
+            initial_epc = data["epc"]
+    # ----------------------------------------------------
+
+    if request.method == "POST":
+        form = PersonaEPCForm(request.POST)
+        if form.is_valid():
+            persona = form.cleaned_data["persona"]
+            epc = form.cleaned_data["epc"]
+            persona.epc = epc
+            persona.save()
+            messages.success(request, f"EPC asignado a {persona} correctamente.")
+            return redirect("almacen:persona_assign_epc")
+    else:
+        form = PersonaEPCForm(initial={"epc": initial_epc})
+
+    return render(
+        request,
+        "almacen/persona_assign_epc.html",
+        {"form": form},
+    )

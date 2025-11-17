@@ -1,5 +1,6 @@
 from django import forms
 from .models import Producto, Ubicacion, Aula
+from .models import Persona
 
 
 class ProductoForm(forms.ModelForm):
@@ -55,3 +56,19 @@ class AulaForm(forms.ModelForm):
         widgets = {
             "nombre": forms.TextInput(attrs={"class": "form-control"}),
         }
+
+
+class PersonaEPCForm(forms.Form):
+    persona = forms.ModelChoiceField(
+        queryset=Persona.objects.all()
+        .filter(epc__isnull=True)
+        .select_related("user")
+        .order_by("user__first_name", "user__last_name"),
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Persona",
+    )
+    epc = forms.CharField(
+        max_length=96,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+        label="EPC",
+    )

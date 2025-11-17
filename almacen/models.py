@@ -68,6 +68,9 @@ class Persona(models.Model):
         on_delete=models.SET_NULL,
         related_name="preferida_por",
     )
+    epc = models.CharField(
+        "EPC", max_length=96, unique=True, default=None, blank=True, null=True
+    )
 
     def __str__(self):
         return self.user.get_full_name() or self.user.email
