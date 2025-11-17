@@ -25,6 +25,7 @@ MQTT_TOPIC_READINGS = "rfid/lectura"
 
 # --- Configuración de Batch ---
 BATCH_TIME_SECONDS = int(os.getenv("BATCH_TIME_SECONDS", 3))
+OPERATION_MODE = os.getenv("OPERATION_MODE", "WITH_PERSONA")
 
 # --- Configuración de Redis/Caché ---
 CACHE_TIMEOUT_SECONDS = int(os.getenv("CACHE_TIMEOUT_SECONDS", 35))
@@ -120,13 +121,20 @@ class BatchProcessor:
         # Separar EPCs de productos
         producto_epcs = [epc for epc in epcs if epc != persona_epc]
 
-        # Validar que hay una persona si hay productos
-        if producto_epcs and not persona:
+        # Validar que hay una persona si hay productos (solo en modo WITH_PERSONA)
+        if producto_epcs and not persona and OPERATION_MODE == "WITH_PERSONA":
             logger.error(
                 f"Batch en Aula {aula_id} contiene {len(producto_epcs)} productos "
                 f"pero NO se detectó ninguna Persona. EPCs: {producto_epcs}"
             )
             return
+
+        # En modo WITHOUT_PERSONA, advertir si hay productos sin persona pero continuar
+        if producto_epcs and not persona and OPERATION_MODE != "WITH_PERSONA":
+            logger.warning(
+                f"Batch en Aula {aula_id} contiene {len(producto_epcs)} productos "
+                f"sin Persona detectada. Procesando en modo WITHOUT_PERSONA."
+            )
 
         if not producto_epcs:
             logger.info(f"Batch solo contiene Persona, no hay productos para procesar.")
@@ -200,13 +208,19 @@ class BatchProcessor:
                     ]
                 )
 
+                usuario_nombre = (
+                    prestamo_activo.usuario.get_full_name()
+                    or prestamo_activo.usuario.email
+                    if prestamo_activo.usuario
+                    else "desconocido"
+                )
                 logger.info(
                     f"✓ DEVOLUCIÓN: '{producto.nombre}' devuelto por "
-                    f"{prestamo_activo.usuario.get_full_name() or prestamo_activo.usuario.email} "
-                    f"a {timestamp.strftime('%H:%M:%S')}"
+                    f"{usuario_nombre} a {timestamp.strftime('%H:%M:%S')}"
                 )
             else:
                 # PRÉSTAMO: El producto no está prestado, crear nuevo préstamo
+                # En modo WITHOUT_PERSONA, persona puede ser None
                 nuevo_prestamo = Prestamo.objects.create(
                     producto=producto, usuario=persona, tomado_en=timestamp
                 )
@@ -229,11 +243,17 @@ class BatchProcessor:
                     ]
                 )
 
-                logger.info(
-                    f"✓ PRÉSTAMO: '{producto.nombre}' tomado por "
-                    f"{persona.get_full_name() or persona.email} "
-                    f"a {timestamp.strftime('%H:%M:%S')}"
-                )
+                if persona:
+                    usuario_nombre = persona.get_full_name() or persona.email
+                    logger.info(
+                        f"✓ PRÉSTAMO: '{producto.nombre}' tomado por "
+                        f"{usuario_nombre} a {timestamp.strftime('%H:%M:%S')}"
+                    )
+                else:
+                    logger.info(
+                        f"✓ PRÉSTAMO: '{producto.nombre}' tomado (sin persona identificada) "
+                        f"a {timestamp.strftime('%H:%M:%S')}"
+                    )
 
 
 class Command(BaseCommand):

@@ -120,7 +120,12 @@ class Prestamo(models.Model):
         Producto, on_delete=models.CASCADE, related_name="prestamos"
     )
     usuario = models.ForeignKey(
-        User, on_delete=models.PROTECT, related_name="prestamos"
+        User,
+        on_delete=models.PROTECT,
+        related_name="prestamos",
+        null=True,
+        blank=True,
+        default=None,
     )
     tomado_en = models.DateTimeField(auto_now_add=True)
     devuelto_en = models.DateTimeField(null=True, blank=True)

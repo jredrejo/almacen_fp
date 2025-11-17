@@ -14,7 +14,13 @@
             <tbody>
                 {% for u in ubicaciones %}
                     <tr>
-                        <td>{{ u.persona.get_full_name|default:u.persona.email }}</td>
+                        <td>
+                            {% if u.persona %}
+                                {{ u.persona.get_full_name|default:u.persona.email }}
+                            {% else %}
+                                <span class="text-muted">(Sin identificar)</span>
+                            {% endif %}
+                        </td>
                         <td>{{ u.producto.nombre }}</td>
                         <td><code>{{ u.producto.epc }}</code></td>
                         <td>{{ u.tomado_en }}</td>
