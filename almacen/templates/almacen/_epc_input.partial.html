@@ -14,12 +14,12 @@
     />
 
     {% if latest_time %}
-    <div class="form-text text-muted">
-        <i class="fas fa-rss"></i> EPC actualizado: {{ latest_epc }} a las **{{ latest_time|date:"H:i:s" }}**
-    </div>
+        <div class="form-text text-muted">
+            <i class="fas fa-rss"></i> EPC actualizado: {{ latest_epc }} a las **{{ latest_time|date:"H:i:s" }}**
+        </div>
     {% else %}
-    <div class="form-text">
-        Pasa el lector junto al producto para rellenar el EPC.
-    </div>
+        <div class="form-text">
+            Pasa el lector junto al producto para rellenar el EPC.
+        </div>
     {% endif %}
 </div>

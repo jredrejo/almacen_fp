@@ -2,26 +2,26 @@
 {% block title %}{% if edit %}Editar{% else %}Nuevo{% endif %} producto - Almacén{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-lg-8">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h1 class="h4 mb-3">{% if edit %}Editar{% else %}Nuevo{% endif %} producto</h1>
-<nav aria-label="breadcrumb" class="mb-3">
-  <ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="{% url 'almacen:inventory' %}">Inventario</a></li>
-    <li class="breadcrumb-item active" aria-current="page">
-      {% if edit %}Editar{% else %}Nuevo{% endif %} producto
-    </li>
-  </ol>
-</nav>
-        <form method="post" enctype="multipart/form-data" hx-boost="false">
-          {% csrf_token %}
-          <div class="row g-3">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h1 class="h4 mb-3">{% if edit %}Editar{% else %}Nuevo{% endif %} producto</h1>
+          <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb">
+              <li class="breadcrumb-item"><a href="{% url 'almacen:inventory' %}">Inventario</a></li>
+              <li class="breadcrumb-item active" aria-current="page">
+                {% if edit %}Editar{% else %}Nuevo{% endif %} producto
+              </li>
+            </ol>
+          </nav>
+          <form method="post" enctype="multipart/form-data" hx-boost="false">
+            {% csrf_token %}
+            <div class="row g-3">
 
-            <div class="col-md-6">
+              <div class="col-md-6">
                 {% if not edit %}
-                <div
+                  <div
                     id="epc-input-container"
                     hx-get="{% url 'almacen:get_latest_epc' %}"
                     hx-trigger="load, every 5s"
@@ -31,89 +31,89 @@
                     hx-vals='{"current_epc": "{{ form.epc.value|default:'' }}"}'
                     {# Deshabilita la confirmación para este elemento, aunque no funcionó, es la práctica correcta. #}
                     hx-disable-features="confirm"
-                >
+                  >
                     <label class="form-label" for="{{ form.epc.id_for_label }}">EPC (RFID)</label>
                     {{ form.epc }}
                     <div class="form-text">Pasa el lector junto al producto para rellenar el EPC.</div>
                     {% for error in form.epc.errors %}
-                        <div class="invalid-feedback d-block">{{ error }}</div>
+                      <div class="invalid-feedback d-block">{{ error }}</div>
                     {% endfor %}
-                </div>
+                  </div>
                 {% else %}
-                <label class="form-label" for="{{ form.epc.id_for_label }}">EPC (RFID)</label>
-                {{ form.epc }}
-                <div class="form-text">El campo EPC está fijo al editar.</div>
+                  <label class="form-label" for="{{ form.epc.id_for_label }}">EPC (RFID)</label>
+                  {{ form.epc }}
+                  <div class="form-text">El campo EPC está fijo al editar.</div>
                 {% endif %}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label" for="{{ form.nombre.id_for_label }}">Nombre</label>
-              {{ form.nombre }}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="{{ form.nombre.id_for_label }}">Nombre</label>
+                {{ form.nombre }}
+              </div>
+
+              {% if current_aula %}
+                <div class="col-md-6">
+                  <label class="form-label">Aula</label>
+                  <input class="form-control" value="{{ current_aula.nombre }}" disabled>
+                </div>
+              {% else %}
+                <div class="col-md-6">
+                  <label class="form-label" for="{{ form.aula.id_for_label }}">Aula</label>
+                  {{ form.aula }}
+                </div>
+              {% endif %}
+
+              <div class="col-md-3">
+                <label class="form-label" for="{{ form.estanteria.id_for_label }}">Estantería</label>
+                {{ form.estanteria }}
+              </div>
+              <div class="col-md-3">
+                <label class="form-label" for="{{ form.posicion.id_for_label }}">Posición</label>
+                {{ form.posicion }}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="{{ form.cantidad.id_for_label }}">Cantidad</label>
+                {{ form.cantidad }}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="{{ form.n_serie.id_for_label }}">Nº de serie</label>
+                {{ form.n_serie }}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="{{ form.foto.id_for_label }}">Foto</label>
+                {{ form.foto }}
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="{{ form.descripcion.id_for_label }}">Descripción</label>
+                {{ form.descripcion }}
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="{{ form.fds.id_for_label }}">FDS (URL)</label>
+                {{ form.fds }}
+              </div>
             </div>
 
-            {% if current_aula %}
-            <div class="col-md-6">
-                <label class="form-label">Aula</label>
-                <input class="form-control" value="{{ current_aula.nombre }}" disabled>
+            <div class="mt-3 d-flex gap-2">
+              <button class="btn btn-primary" type="submit" name="action" value="new">
+                Guardar y nuevo
+              </button>
+              <button class="btn btn-outline-secondary" type="submit" name="action" value="list">
+                Guardar e ir a inventario
+              </button>
+              <a class="btn btn-link" href="{% url 'almacen:inventory' %}">Cancelar</a>
             </div>
-            {% else %}
-            <div class="col-md-6">
-                <label class="form-label" for="{{ form.aula.id_for_label }}">Aula</label>
-                {{ form.aula }}
-            </div>
-            {% endif %}
-
-            <div class="col-md-3">
-              <label class="form-label" for="{{ form.estanteria.id_for_label }}">Estantería</label>
-              {{ form.estanteria }}
-            </div>
-            <div class="col-md-3">
-              <label class="form-label" for="{{ form.posicion.id_for_label }}">Posición</label>
-              {{ form.posicion }}
-            </div>
-            <div class="col-md-4">
-              <label class="form-label" for="{{ form.cantidad.id_for_label }}">Cantidad</label>
-              {{ form.cantidad }}
-            </div>
-            <div class="col-md-4">
-              <label class="form-label" for="{{ form.n_serie.id_for_label }}">Nº de serie</label>
-              {{ form.n_serie }}
-            </div>
-            <div class="col-md-4">
-              <label class="form-label" for="{{ form.foto.id_for_label }}">Foto</label>
-              {{ form.foto }}
-            </div>
-            <div class="col-12">
-              <label class="form-label" for="{{ form.descripcion.id_for_label }}">Descripción</label>
-              {{ form.descripcion }}
-            </div>
-            <div class="col-12">
-              <label class="form-label" for="{{ form.fds.id_for_label }}">FDS (URL)</label>
-              {{ form.fds }}
-            </div>
-          </div>
-
-  <div class="mt-3 d-flex gap-2">
-    <button class="btn btn-primary" type="submit" name="action" value="new">
-      Guardar y nuevo
-    </button>
-    <button class="btn btn-outline-secondary" type="submit" name="action" value="list">
-      Guardar e ir a inventario
-    </button>
-    <a class="btn btn-link" href="{% url 'almacen:inventory' %}">Cancelar</a>
-  </div>
-</form>
+          </form>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<script>
+  <script>
     // Centra el foco en el campo 'nombre' al cargar la página
     document.addEventListener('DOMContentLoaded', function() {
-        const nombreInput = document.getElementById('{{ form.nombre.id_for_label }}');
-        if (nombreInput) {
-            nombreInput.focus();
-        }
+      const nombreInput = document.getElementById('{{ form.nombre.id_for_label }}');
+      if (nombreInput) {
+        nombreInput.focus();
+      }
     });
-</script>
+  </script>
 {% endblock %}

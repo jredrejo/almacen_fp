@@ -19,17 +19,17 @@
       </ul>
 
       <!-- Aula selector -->
-        <form class="d-flex me-3" method="post" action="{% url 'almacen:set_current_aula' %}">
+      <form class="d-flex me-3" method="post" action="{% url 'almacen:set_current_aula' %}">
         {% csrf_token %}
         <select class="form-select" name="aula_id" onchange="this.form.submit()">
-            <option value="">— Todas las aulas —</option>
-            {% for a in ctx_all_aulas %}
+          <option value="">— Todas las aulas —</option>
+          {% for a in ctx_all_aulas %}
             <option value="{{ a.id }}" {% if ctx_current_aula and a.id == ctx_current_aula.id %}selected{% endif %}>
-                {{ a.nombre }}
+              {{ a.nombre }}
             </option>
-            {% endfor %}
+          {% endfor %}
         </select>
-        </form>
+      </form>
 
       <ul class="navbar-nav">
         {% if request.user.is_authenticated %}

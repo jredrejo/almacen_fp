@@ -1,51 +1,51 @@
 {% extends "base.html" %}
-{% load i18n %} 
+{% load i18n %}
 {% load account socialaccount %}
 {% load static %}
-{% block title%}Entrar - Almacén{% endblock %} 
+{% block title%}Entrar - Almacén{% endblock %}
 
 
 {% block content %}
-<div class="row justify-content-center">
+    <div class="row justify-content-center">
 
-    <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h1 class="h4 mb-3">Acceso FP</h1>
-                <form method="post" action="{% url 'account_login' %}">
-                {% csrf_token %}
-                {{ form.as_p }}
-                <button type="submit">Entrar</button>
-                </form>
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h1 class="h4 mb-3">Acceso FP</h1>
+                    <form method="post" action="{% url 'account_login' %}">
+                        {% csrf_token %}
+                        {{ form.as_p }}
+                        <button type="submit">Entrar</button>
+                    </form>
 
-                <hr>
-                {% get_providers as providers %}
-                {% if providers %}
-                    {% for p in providers %}
-                        {% if p.id == 'google' %}
-                            <p class="text-muted">
-                                Usa tu cuenta de correo electrónico de
-                                <strong>santiagoapostol.net</strong>.
-                            </p>
-                            <a
-                                class="btn btn-outline-dark w-100"
-                                href="{% provider_login_url 'google' %}"
-                                hx-boost="false"
-                                data-turbo="false"
-                            >
-                                <img
-                                    alt=""
-                                    src="{% static 'img/google.svg' %}"
-                                    width="20"
-                                    class="me-2"
-                                />
-                                Entrar con el correo del instituto
-                            </a>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
+                    <hr>
+                    {% get_providers as providers %}
+                    {% if providers %}
+                        {% for p in providers %}
+                            {% if p.id == 'google' %}
+                                <p class="text-muted">
+                                    Usa tu cuenta de correo electrónico de
+                                    <strong>santiagoapostol.net</strong>.
+                                </p>
+                                <a
+                                    class="btn btn-outline-dark w-100"
+                                    href="{% provider_login_url 'google' %}"
+                                    hx-boost="false"
+                                    data-turbo="false"
+                                >
+                                    <img
+                                        alt=""
+                                        src="{% static 'img/google.svg' %}"
+                                        width="20"
+                                        class="me-2"
+                                    />
+                                    Entrar con el correo del instituto
+                                </a>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
-</div>
 {% endblock %}

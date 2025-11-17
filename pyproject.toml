@@ -28,6 +28,7 @@ dev = [
     "debugpy>=1.8.17",
     "django-stubs>=5.2.5",
     "django-types>=0.22.0",
+    "djhtml>=3.0.10",
     "mypy>=1.18.2",
     "pip-tools>=7.5.1",
     "pre-commit>=4.3.0",

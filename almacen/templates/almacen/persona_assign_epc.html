@@ -2,59 +2,59 @@
 {% block title %}Asignar EPC a Persona - Almacén{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-lg-8">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h1 class="h4 mb-3">Asignar EPC a Persona</h1>
-        <nav aria-label="breadcrumb" class="mb-3">
-          <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'almacen:dashboard' %}">Dashboard</a></li>
-            <li class="breadcrumb-item active" aria-current="page">
-              Asignar EPC a Persona
-            </li>
-          </ol>
-        </nav>
-        <form method="post" hx-boost="false">
-          {% csrf_token %}
-          <div class="row g-3">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h1 class="h4 mb-3">Asignar EPC a Persona</h1>
+          <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb">
+              <li class="breadcrumb-item"><a href="{% url 'almacen:dashboard' %}">Dashboard</a></li>
+              <li class="breadcrumb-item active" aria-current="page">
+                Asignar EPC a Persona
+              </li>
+            </ol>
+          </nav>
+          <form method="post" hx-boost="false">
+            {% csrf_token %}
+            <div class="row g-3">
 
-            <div class="col-md-6">
+              <div class="col-md-6">
                 <div
-                    id="epc-input-container"
-                    hx-get="{% url 'almacen:get_latest_epc' %}"
-                    hx-trigger="load, every 5s"
-                    hx-swap="outerHTML"
-                    hx-target="#epc-input-container"
-                    hx-vals='{"current_epc": "{{ form.epc.value|default:'' }}"}'
-                    hx-disable-features="confirm"
+                  id="epc-input-container"
+                  hx-get="{% url 'almacen:get_latest_epc' %}"
+                  hx-trigger="load, every 5s"
+                  hx-swap="outerHTML"
+                  hx-target="#epc-input-container"
+                  hx-vals='{"current_epc": "{{ form.epc.value|default:'' }}"}'
+                  hx-disable-features="confirm"
                 >
-                    <label class="form-label" for="{{ form.epc.id_for_label }}">EPC (RFID)</label>
-                    {{ form.epc }}
-                    <div class="form-text">Pasa el lector junto a la tarjeta para rellenar el EPC.</div>
-                    {% for error in form.epc.errors %}
-                        <div class="invalid-feedback d-block">{{ error }}</div>
-                    {% endfor %}
-                </div>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label" for="{{ form.persona.id_for_label }}">Persona</label>
-              {{ form.persona }}
-               {% for error in form.persona.errors %}
+                  <label class="form-label" for="{{ form.epc.id_for_label }}">EPC (RFID)</label>
+                  {{ form.epc }}
+                  <div class="form-text">Pasa el lector junto a la tarjeta para rellenar el EPC.</div>
+                  {% for error in form.epc.errors %}
                     <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="{{ form.persona.id_for_label }}">Persona</label>
+                {{ form.persona }}
+                {% for error in form.persona.errors %}
+                  <div class="invalid-feedback d-block">{{ error }}</div>
                 {% endfor %}
+              </div>
             </div>
-          </div>
 
-          <div class="mt-3 d-flex gap-2">
-            <button class="btn btn-primary" type="submit">
-              Asignar EPC
-            </button>
-            <a class="btn btn-link" href="{% url 'almacen:dashboard' %}">Cancelar</a>
-          </div>
-        </form>
+            <div class="mt-3 d-flex gap-2">
+              <button class="btn btn-primary" type="submit">
+                Asignar EPC
+              </button>
+              <a class="btn btn-link" href="{% url 'almacen:dashboard' %}">Cancelar</a>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </div>
-</div>
 {% endblock %}
