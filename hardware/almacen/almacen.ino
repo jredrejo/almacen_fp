@@ -1,5 +1,5 @@
 /* PROGRAMA PARA LA GESTIÓN DE ALMACEN (ENTRADA/SALIDA MEDIANTE MQTT+RFID)       */
-/* Autor: Raúl Diosdado                                                          */
+/* Autores: Raúl Diosdado  /  José L. Redrejo                                    */
 /* Fecha: 11/10/2025                                                             */
 /* PLACA: M5STACK (Procesador: ESP32-C6)                                         */
 /* El programa realizará las siguientes funciones:                               */
@@ -30,23 +30,9 @@ Timezone spain(summerTime, winterTime);
 
 unsigned long lastDebugTime = 0;
 unsigned long lastCleanupTime = 0;
-uint8_t lastUid[12] = { 0 };  // Para detectar cambios de tarjeta
 
 //Comentar esta linea para eliminar el modo DEBUG
-#define DEBUG 1
-
-
-//Definicion de los pines (HARDWARE)
-//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-// Pines digitales I/O
-
-
-//Variables Globales
-//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-
-//Temporizaciones y contadores
-//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// #define DEBUG 1
 
 
 void setup() {
@@ -139,48 +125,38 @@ void loop() {
   if (memcmp(rfid.uid, blankUid, 12) != 0) {
     // Hay una tarjeta detectada
 
-    // Verificar si es una tarjeta diferente a la anterior
-    if (memcmp(rfid.uid, lastUid, 12) != 0) {
-      // Nueva tarjeta detectada
 #ifdef DEBUG
-      Serial.print("Nueva tarjeta detectada: ");
-      rfid.dumpUIDToSerial();
-      Serial.println();
+    Serial.print("Nueva tarjeta detectada: ");
+    rfid.dumpUIDToSerial();
+    Serial.println();
 #endif
 
-      // Guardar el UID actual
-      memcpy(lastUid, rfid.uid, 12);
-
-
-      // Check if UID is in deduplication buffer
-      if (!isUidInBuffer(rfid.uid)) {
-        // UID not in buffer or expired - send data
+    // Check if UID is in deduplication buffer
+    if (!isUidInBuffer(rfid.uid)) {
+      // UID not in buffer or expired - send data
 #ifdef DEBUG
-        Serial.println("UID not in buffer - sending MQTT message");
+      Serial.println("UID not in buffer - sending MQTT message");
 #endif
-        // Enviar datos por MQTT
-        envio_datos(rfid.uid);
+      // Enviar datos por MQTT
+      envio_datos(rfid.uid);
 
-        // Add UID to buffer
-        addUidToBuffer(rfid.uid);
-      } else {
-        // UID is in buffer and still valid - skip sending
+      // Add UID to buffer
+      addUidToBuffer(rfid.uid);
+    } else {
+      // UID is in buffer and still valid - skip sending
 #ifdef DEBUG
-        Serial.println("UID in buffer (within TTL) - skipping MQTT publish");
+      Serial.println("UID in buffer (within TTL) - skipping MQTT publish");
 #endif
-      }
     }
-  } else {
-    // No hay tarjeta (limpieza)
-    if (memcmp(lastUid, blankUid, 12) != 0) {
-      // La tarjeta acaba de ser removida
-#ifdef DEBUG
-      Serial.print("Tarjeta removida: ");
-      Serial.println();
-#endif
-      memset(lastUid, 0, 12);
-    }
+    // Limpiar el UID después de procesar para evitar múltiples lecturas del mismo tag
+    // en la misma o siguientes iteraciones. El buffer (isUidInBuffer) gestiona
+    // la deduplicación basada en tiempo.
+    memset(rfid.uid, 0, 12);
+
+
+
   }
+
 
 #ifdef DEBUG
   // Debug info periódico (cada 5 segundos)
@@ -190,9 +166,5 @@ void loop() {
   }
 #endif
 
-  // Check if a card is present
-  // const uint8_t blankUid[12] = { 0 };
-  // if (memcmp(rfid.uid, blankUid, sizeof(rfid.uid)) != 0) {
-  //   envio_datos(rfid.uid);
-  // }
+
 }
