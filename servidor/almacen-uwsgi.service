@@ -1,0 +1,20 @@
+[Unit]
+Description=uWSGI instance for Almacen FP
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/almacen_fp
+Environment="PATH=/opt/almacen_fp/.venv/bin"
+
+ExecStart=/opt/almacen_fp/.venv/bin/uwsgi --ini /etc/uwsgi/apps-available/almacen_uwsgi.ini
+
+Restart=always
+KillSignal=SIGTERM
+Type=notify
+StandardError=append:/var/log/uwsgi/almacen_fp.log
+NotifyAccess=all
+
+[Install]
+WantedBy=multi-user.target
