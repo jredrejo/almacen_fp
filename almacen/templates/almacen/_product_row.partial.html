@@ -21,18 +21,20 @@
         <div>{{ p.aula }}</div>
     </td>
     <td>
-        {% if p.ubicacion %} {% if p.ubicacion.estado == 'ESTANTE' %}
-            <div>Estantería: <strong>{{ p.estanteria|default:"—" }}</strong></div>
-            <div class="text-muted small">
-                Posición: {{ p.posicion|default:"—" }}
-            </div>
+        {% if p.ubicacion %}
+            {% if p.ubicacion.estado == 'ESTANTE' %}
+                <div>Estantería: <strong>{{ p.estanteria|default:"—" }}</strong></div>
+                <div class="text-muted small">
+                    Posición: {{ p.posicion|default:"—" }}
+                </div>
+            {% else %}
+                <div class="text-danger">
+                    <i class="fas fa-user me-1"></i>
+                    {{ p.ubicacion.persona.get_full_name|default:p.ubicacion.persona.email }}
+                </div>
+                <div class="text-muted small">{{ p.ubicacion.tomado_en }}</div>
+            {% endif %}
         {% else %}
-            <div class="text-danger">
-                En manos de:
-                {{ p.ubicacion.persona.get_full_name|default:p.ubicacion.persona.email  }}
-            </div>
-            <div class="text-muted small">{{ p.ubicacion.tomado_en }}</div>
-        {% endif %} {% else %}
             <span class="text-muted">Desconocida</span>
         {% endif %}
     </td>
@@ -40,12 +42,23 @@
         <div class="fw-medium">{{ p.cantidad }}</div>
     </td>
     <td>
-        {% if p.ubicacion %} {% if p.ubicacion.estado == 'PERSONA' %}
-            <span class="badge bg-danger">En manos</span>
+        {% if p.ubicacion %}
+            {% if p.ubicacion.estado == 'PERSONA' %}
+                <span class="badge badge-gradient-danger">
+                    <i class="fas fa-hand-holding me-1"></i>
+                    En manos
+                </span>
+            {% else %}
+                <span class="badge badge-gradient-success">
+                    <i class="fas fa-check-circle me-1"></i>
+                    En estantería
+                </span>
+            {% endif %}
         {% else %}
-            <span class="badge bg-success">En estantería</span>
-        {% endif %} {% else %}
-            <span class="badge bg-secondary">Desconocido</span>
+            <span class="badge bg-secondary">
+                <i class="fas fa-question-circle me-1"></i>
+                Desconocido
+            </span>
         {% endif %}
     </td>
 
@@ -55,31 +68,33 @@
                 class="btn btn-outline-secondary"
                 href="{% url 'almacen:producto_edit' p.id %}"
                 hx-boost="false"
-            >Editar</a
+            >
+                <i class="fas fa-edit me-1"></i>Editar
+            </a>
+            {% if request.user.is_authenticated %}
+                <button
+                    class="btn btn-outline-primary"
+                    hx-post="{% url 'almacen:toggle_prestamo' p.id %}"
+                    hx-target="#row-{{ p.id }}"
+                    hx-swap="outerHTML"
+                    hx-confirm="{% if p.taken_by %}¿Devolver '{{ p.nombre }}'?{% else %}¿Tomar '{{ p.nombre }}'?{% endif %}"
                 >
-                {% if request.user.is_authenticated %}
-                    <button
-                        class="btn btn-outline-primary"
-                        hx-post="{% url 'almacen:toggle_prestamo' p.id %}"
-                        hx-target="#row-{{ p.id }}"
-                        hx-swap="outerHTML"
-                        hx-confirm="{% if p.taken_by %}¿Devolver '{{ p.nombre }}'?{% else %}¿Tomar '{{ p.nombre }}'?{% endif %}"
-                        data-confirm-title="{% if p.taken_by %}Devolver{% else %}Tomar{% endif %}"
-                        data-confirm-ok="{% if p.taken_by %}Devolver{% else %}Tomar{% endif %}"
-                    >
-                        Tomar/Devolver
-                    </button>
-                {% endif %} {% if request.user|in_group:"ProfesoresFP" %}
-                    <button
-                        class="btn btn-outline-danger"
-                        hx-delete="{% url 'almacen:producto_delete' p.id %}"
-                        hx-target="#row-{{ p.id }}"
-                        hx-swap="outerHTML swap:1ms"
-                        hx-confirm="¿Eliminar definitivamente '{{ p.nombre }}'?"
-                    >
-                        Eliminar
-                    </button>
-                {% endif %}
-            </div>
-        </td>
-    </tr>
+                    <i class="fas fa-hand-paper me-1"></i>
+                    Tomar/Devolver
+                </button>
+            {% endif %}
+            {% if request.user|in_group:"ProfesoresFP" %}
+                <button
+                    class="btn btn-outline-danger"
+                    hx-delete="{% url 'almacen:producto_delete' p.id %}"
+                    hx-target="#row-{{ p.id }}"
+                    hx-swap="outerHTML swap:1ms"
+                    hx-confirm="¿Eliminar definitivamente '{{ p.nombre }}'?"
+                >
+                    <i class="fas fa-trash me-1"></i>
+                    Eliminar
+                </button>
+            {% endif %}
+        </div>
+    </td>
+</tr>

@@ -2,23 +2,35 @@
 {% load i18n %}
 {% load account socialaccount %}
 {% load static %}
-{% block title%}Entrar - Almacén{% endblock %}
+{% block title %}
 
+
+
+
+    Iniciar Sesión - Almacén{% endblock %}
 
 {% block content %}
-    <div class="row justify-content-center">
+    <div class="login-container">
+        <div class="row justify-content-center">
+            <div class="col-md-12 col-lg-12">
+                <div class="login-card fade-in-up">
+                <!-- Logo/Brand Section -->
+                    <div class="text-center mb-4">
+                        <img src="{% static 'img/logo.svg' %}" alt="logo del instituto" class="login-logo">
+                        <h1 class="login-title">Sistema de Almacén en FP</h1>
+                    </div>
 
-        <div class="col-md-6">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h1 class="h4 mb-3">Acceso FP</h1>
-                    <form method="post" action="{% url 'account_login' %}">
-                        {% csrf_token %}
-                        {{ form.as_p }}
-                        <button type="submit">Entrar</button>
-                    </form>
+                <!-- Error Messages -->
+                    {% if form.errors %}
+                        <div class="alert alert-danger alert-modern" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <strong>Error:</strong> Usuario o contraseña incorrectos.
+                        </div>
+                    {% endif %}
 
-                    <hr>
+
+
+
                     {% get_providers as providers %}
                     {% if providers %}
                         {% for p in providers %}
@@ -44,6 +56,95 @@
                             {% endif %}
                         {% endfor %}
                     {% endif %}
+                    <hr>
+                    <hr>
+
+
+
+                <!-- Login Form -->
+
+
+                    <form method="post" class="login-form">
+                        {% csrf_token %}
+
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.email.id_for_label }}">
+                                <i class="fas fa-user me-1"></i>
+                                Para usuarios que no tengan cuenta del IES Santiago Apóstol:
+                            </label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-user input-icon"></i>
+                                <input
+                                    type="email"
+                                    name="{{ form.login.name }}"
+                                    class="form-control ps-5"
+                                    id="{{ form.login.id_for_label }}"
+                                    placeholder="Correo electrónico"
+                                    required
+                                    autofocus
+                                >
+                            </div>
+                            {% if form.username.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.username.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label" for="{{ form.password.id_for_label }}">
+                                <i class="fas fa-lock me-1"></i>
+                                Contraseña
+                            </label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-lock input-icon"></i>
+                                <input
+                                    type="password"
+                                    name="{{ form.password.name }}"
+                                    class="form-control ps-5"
+                                    id="{{ form.password.id_for_label }}"
+                                    placeholder="Ingresa tu contraseña"
+                                    required
+                                >
+                            </div>
+                            {% if form.password.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.password.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-login">
+                                <i class="fas fa-sign-in-alt me-2"></i>
+                                Iniciar Sesión
+                            </button>
+                        </div>
+
+                        {% if next %}
+                            <input type="hidden" name="next" value="{{ next }}">
+                        {% endif %}
+                    </form>
+
+
+
+
+                <!-- Footer Links -->
+                    <div class="login-footer">
+                        <a href="{% url 'account_reset_password' %}" class="text-decoration-none">
+                            <i class="fas fa-question-circle me-1"></i>
+                            ¿Olvidaste tu contraseña?
+                        </a>
+                    </div>
+                </div>
+
+            <!-- Additional Info -->
+                <div class="text-center mt-4 text-muted">
+                    <small>
+                        <i class="fas fa-shield-alt me-1"></i>
+                        Acceso seguro y protegido
+                    </small>
                 </div>
             </div>
         </div>

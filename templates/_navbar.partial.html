@@ -1,7 +1,17 @@
 {% load group_tags %}
+{% load static %}
 <nav class="navbar navbar-expand-lg bg-body border-bottom">
   <div class="container-fluid">
-    <a class="navbar-brand fw-bold" href="{% url 'almacen:dashboard' %}">Almacén</a>
+    <a class="navbar-brand fw-bold d-flex align-items-center" href="{% url 'almacen:dashboard' %}">
+      <img
+        src="{% static 'img/logo.svg' %}"
+        alt="Almacén"
+        width="48"
+        height="48"
+        class="me-2"
+      >
+      Almacén
+    </a>
     <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#nav">
       <span class="navbar-toggler-icon"></span>
     </button>
