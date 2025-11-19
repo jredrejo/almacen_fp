@@ -1,0 +1,23 @@
+[Unit]
+Description=Django MQTT Listener Service para rfid
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/almacen_fp
+Environment="PATH=/opt/almacen_fp/.venv/bin"
+ExecStart=/opt/almacen_fp/.venv/bin/python manage.py mqtt_listener
+
+# Reiniciar automáticamente si falla
+Restart=always
+RestartSec=10
+
+# Logs
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mqtt-listener
+
+[Install]
+WantedBy=multi-user.target

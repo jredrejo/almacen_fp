@@ -22,3 +22,9 @@ sudo ln -sf /etc/nginx/sites-available/almacen_fp /etc/nginx/sites-enabled/
 
 certbot certonly --manual --preferred-challenges=dns -d fp.santiagoapostol.net
 
+
+sudo cp servidor/mqtt-rfid.service /etc/systemd/system/mqtt-rfid.service
+sudo systemctl daemon-reload
+sudo systemctl enable mqtt-rfid.service
+sudo systemctl start mqtt-rfid.service
+
