@@ -295,6 +295,8 @@ def toggle_prestamo(request, pk: int):
 @require_POST
 def set_current_aula(request):
     aula_id = request.POST.get("aula_id")
+    if aula_id is None or aula_id=="":
+        return redirect("almacen:inventory")
     try:
         aula = Aula.objects.all().get(pk=aula_id)
     except Aula.DoesNotExist:

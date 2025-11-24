@@ -28,31 +28,32 @@
         {% endif %}
       </ul>
 
-      <!-- Aula selector -->
-      <form class="d-flex me-3" method="post" action="{% url 'almacen:set_current_aula' %}">
-        {% csrf_token %}
-        <select class="form-select" name="aula_id" onchange="this.form.submit()">
-          <option value="">— Todas las aulas —</option>
-          {% for a in ctx_all_aulas %}
-            <option value="{{ a.id }}" {% if ctx_current_aula and a.id == ctx_current_aula.id %}selected{% endif %}>
-              {{ a.nombre }}
-            </option>
-          {% endfor %}
-        </select>
-      </form>
-
-      <ul class="navbar-nav">
+      <div class="d-flex align-items-center">
         {% if request.user.is_authenticated %}
-          <li class="nav-item">
-            {% with name=request.user.first_name %}
-              <span class="navbar-text me-3">Hola, {% if name %}{{ name }}{% else %}{{ request.user.email }}{% endif %}</span>
-            {% endwith %}
-          </li>
-          <li class="nav-item"><a class="btn btn-outline-secondary" href="{% url 'account_logout' %}">Salir</a></li>
-        {% else %}
-          <li class="nav-item"><a class="btn btn-primary" href="{% url 'account_login' %}">Entrar</a></li>
+          {% with name=request.user.first_name %}
+            <span class="me-3 text-muted">Hola, {% if name %}{{ name }}{% else %}{{ request.user.email }}{% endif %}</span>
+          {% endwith %}
         {% endif %}
-      </ul>
+
+        <!-- Aula selector -->
+        <form class="d-flex me-3" method="post" action="{% url 'almacen:set_current_aula' %}">
+          {% csrf_token %}
+          <select class="form-select" name="aula_id" onchange="this.form.submit()">
+            <option value="">— Todas las aulas —</option>
+            {% for a in ctx_all_aulas %}
+              <option value="{{ a.id }}" {% if ctx_current_aula and a.id == ctx_current_aula.id %}selected{% endif %}>
+                {{ a.nombre }}
+              </option>
+            {% endfor %}
+          </select>
+        </form>
+
+        {% if request.user.is_authenticated %}
+          <a class="btn btn-outline-secondary" href="{% url 'account_logout' %}">Salir</a>
+        {% else %}
+          <a class="btn btn-primary" href="{% url 'account_login' %}">Entrar</a>
+        {% endif %}
+      </div>
     </div>
   </div>
 </nav>

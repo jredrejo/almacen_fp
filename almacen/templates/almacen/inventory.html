@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load group_tags %}
 {% block title %}Inventario - Almacén{% endblock %}
 {% block content %}
     <div class="page-header fade-in-up">
@@ -8,21 +9,25 @@
                 Inventario
                 {% if current_aula %}<span class="text-muted">— {{ current_aula.nombre }}</span>{% endif %}
             </h1>
-            <form class="search-wrapper" method="get">
-                <i class="fas fa-search"></i>
-                <input
-                    class="form-control"
-                    type="search"
-                    name="q"
-                    value="{{ q }}"
-                    placeholder="Buscar productos..."
-                />
-                <button class="btn btn-primary ms-2">Buscar</button>
+            <form class="search-wrapper d-flex align-items-center" method="get">
+                <div class="position-relative flex-grow-1">
+                    <i class="fas fa-search position-absolute" style="left: 1rem; top: 50%; transform: translateY(-50%); color: #6c757d;"></i>
+                    <input
+                        class="form-control pe-5"
+                        type="search"
+                        name="q"
+                        value="{{ q }}"
+                        placeholder="Buscar productos..."
+                        style="padding-left: 2.5rem;"
+                    />
+                </div>
+                <button class="btn btn-primary ms-2" type="submit">Buscar</button>
             </form>
         </div>
     </div>
 
-    <div class="table-responsive fade-in-up" style="animation-delay: 0.2s">
+    <!-- Desktop Table View -->
+    <div class="table-responsive d-none d-lg-block fade-in-up" style="animation-delay: 0.2s">
         <table class="table table-modern mb-0" id="inventory-table">
             <thead>
                 <tr>
@@ -46,5 +51,146 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+
+    <!-- Mobile Card View -->
+    <div class="d-lg-none fade-in-up" style="animation-delay: 0.2s">
+        {% for p in productos %}
+            <div class="card mb-3 shadow-sm mobile-product-card" id="mobile-row-{{ p.id }}">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <!-- Foto -->
+                        <div class="col-3 col-sm-2">
+                            {% if p.foto %}
+                                <img
+                                    src="{{ p.foto.url }}"
+                                    alt=""
+                                    class="img-fluid rounded"
+                                    style="width: 60px; height: 60px; object-fit: cover"
+                                />
+                            {% else %}
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-image fa-2x"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Info Principal -->
+                        <div class="col-9 col-sm-10">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1" style="min-width: 0;">
+                                    <h6 class="mb-1 fw-medium">{{ p.nombre }}</h6>
+                                    {% if p.n_serie %}
+                                        <small class="text-muted d-block">S/N: {{ p.n_serie }}</small>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Estado Badge -->
+                                <div class="ms-2" style="flex-shrink: 0;">
+                                    {% if p.ubicacion %}
+                                        {% if p.ubicacion.estado == 'PERSONA' %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-hand-holding me-1"></i>
+                                                En manos
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check-circle me-1"></i>
+                                                En estantería
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-question-circle me-1"></i>
+                                            Desconocido
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            {% if p.epc %}
+                                <small class="text-muted d-block"><code>{{ p.epc }}</code></small>
+                            {% endif %}
+
+                            <!-- Detalles adicionales -->
+                            <div class="row mt-2">
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Aula:</small>
+                                    <span>{{ p.aula|default:"—" }}</span>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Cantidad:</small>
+                                    <span class="fw-medium">{{ p.cantidad }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Ubicación -->
+                            {% if p.ubicacion %}
+                                {% if p.ubicacion.estado == 'ESTANTE' %}
+                                    <div class="mt-2">
+                                        <small class="text-muted">Ubicación:</small>
+                                        <div class="small">
+                                            Estantería: <strong>{{ p.estanteria|default:"—" }}</strong>
+                                            Posición: {{ p.posicion|default:"—" }}
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="mt-2">
+                                        <small class="text-muted">Con:</small>
+                                        <div class="small text-danger">
+                                            <i class="fas fa-user me-1"></i>
+                                            {{ p.ubicacion.persona.get_full_name|default:p.ubicacion.persona.email }}
+                                        </div>
+                                        <small class="text-muted">{{ p.ubicacion.tomado_en }}</small>
+                                    </div>
+                                {% endif %}
+                            {% endif %}
+
+                            <!-- Acciones -->
+                            <div class="mt-3">
+                                <div class="d-grid gap-1 d-md-flex">
+                                    <a
+                                        class="btn btn-sm btn-outline-secondary flex-fill"
+                                        href="{% url 'almacen:producto_edit' p.id %}"
+                                        hx-boost="false"
+                                    >
+                                        <i class="fas fa-edit me-1"></i>Editar
+                                    </a>
+                                    {% if request.user.is_authenticated %}
+                                        <button
+                                            class="btn btn-sm btn-outline-primary flex-fill"
+                                            hx-post="{% url 'almacen:toggle_prestamo' p.id %}"
+                                            hx-target="#mobile-row-{{ p.id }}"
+                                            hx-swap="outerHTML"
+                                            hx-confirm="{% if p.taken_by %}¿Devolver '{{ p.nombre }}'?{% else %}¿Tomar '{{ p.nombre }}'?{% endif %}"
+                                        >
+                                            <i class="fas fa-hand-paper me-1"></i>
+                                            {% if p.taken_by %}Devolver{% else %}Tomar{% endif %}
+                                        </button>
+                                    {% endif %}
+                                    {% if request.user|in_group:"ProfesoresFP" %}
+                                        <button
+                                            class="btn btn-sm btn-outline-danger flex-fill"
+                                            hx-delete="{% url 'almacen:producto_delete' p.id %}"
+                                            hx-target="#mobile-row-{{ p.id }}"
+                                            hx-swap="outerHTML swap:1ms"
+                                            hx-confirm="¿Eliminar definitivamente '{{ p.nombre }}'?"
+                                        >
+                                            <i class="fas fa-trash me-1"></i>
+                                            Eliminar
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-inbox fa-3x mb-3"></i>
+                <p>No hay productos.</p>
+            </div>
+        {% endfor %}
     </div>
 {% endblock %}

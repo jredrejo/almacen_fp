@@ -1,8 +1,14 @@
-{% extends "base.html" %} {% block title %}Productos en manos - Almacén
-{%endblock %} {% block content %}
-    <h1 class="h4">Personas con productos</h1>
-    <div class="table-responsive">
-        <table class="table align-middle">
+{% extends "base.html" %}
+{% block title %}Productos en manos - Almacén{% endblock %}
+{% block content %}
+    <h1 class="h4 mb-4">
+        <i class="fas fa-hand-holding me-2"></i>
+        Personas con productos
+    </h1>
+
+    <!-- Desktop Table View -->
+    <div class="table-responsive d-none d-lg-block">
+        <table class="table table-modern mb-0">
             <thead>
                 <tr>
                     <th>Persona</th>
@@ -16,7 +22,7 @@
                     <tr>
                         <td>
                             {% if u.persona %}
-                                {{ u.persona.get_full_name|default:u.persona.email }}
+                                <div class="fw-medium">{{ u.persona.get_full_name|default:u.persona.email }}</div>
                             {% else %}
                                 <span class="text-muted">(Sin identificar)</span>
                             {% endif %}
@@ -34,5 +40,57 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+
+    <!-- Mobile Card View -->
+    <div class="d-lg-none">
+        {% for u in ubicaciones %}
+            <div class="card mb-3 shadow-sm mobile-prestamo-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="flex-grow-1" style="min-width: 0;">
+                            <h6 class="mb-1 fw-medium">{{ u.producto.nombre }}</h6>
+                            {% if u.persona %}
+                                <small class="text-muted">
+                                    <i class="fas fa-user me-1"></i>
+                                    {{ u.persona.get_full_name|default:u.persona.email }}
+                                </small>
+                            {% else %}
+                                <small class="text-muted">
+                                    <i class="fas fa-user-slash me-1"></i>
+                                    (Sin identificar)
+                                </small>
+                            {% endif %}
+                        </div>
+                        <div class="ms-2 text-end">
+                            <span class="badge bg-warning text-dark">
+                                <i class="fas fa-clock me-1"></i>
+                                En manos
+                            </span>
+                        </div>
+                    </div>
+
+                    {% if u.producto.epc %}
+                        <div class="mb-2">
+                            <small class="text-muted d-block">EPC:</small>
+                            <code class="small">{{ u.producto.epc }}</code>
+                        </div>
+                    {% endif %}
+
+                    <div>
+                        <small class="text-muted d-block">Fecha de préstamo:</small>
+                        <div class="small">
+                            <i class="fas fa-calendar-alt me-1"></i>
+                            {{ u.tomado_en }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-hand-holding-heart fa-3x mb-3"></i>
+                <p>Nadie tiene productos actualmente.</p>
+            </div>
+        {% endfor %}
     </div>
 {% endblock %}
