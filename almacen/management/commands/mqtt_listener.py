@@ -160,7 +160,7 @@ class BatchProcessor:
             return
 
         # Validar aula del producto
-        if producto.aula_id != aula_id:
+        if producto.aula_id != aula_id:  # type: ignore[attr-defined]
             logger.warning(
                 f"Producto '{producto.nombre}' (EPC: {epc}) está registrado en "
                 f"Aula '{producto.aula.nombre}' pero fue detectado en Aula ID {aula_id}. "

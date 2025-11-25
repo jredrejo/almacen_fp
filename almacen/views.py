@@ -69,10 +69,32 @@ def get_current_aula(request):
 
 @login_required
 def dashboard(request):
-    total = Producto.objects.count()
-    en_manos = Ubicacion.objects.filter(estado="PERSONA").count()
+    # Apply access control for non-staff users
+    qs = Producto.objects.all()
+    current_aula = get_current_aula(request)
+
+    if request.user.is_authenticated:
+        try:
+            persona = request.user.persona
+            if not persona.user.is_staff:
+                # For non-staff users, filter by accessible aulas
+                accessible_aulas = persona.get_aulas_access()
+                if current_aula:
+                    # Filter by current aula if user has access
+                    if persona.has_aula_access(current_aula):
+                        qs = qs.filter(aula=current_aula)
+                    else:
+                        qs = qs.none()
+                else:
+                    # Show all products from accessible aulas
+                    qs = qs.filter(aula__in=accessible_aulas)
+        except Persona.DoesNotExist:
+            qs = qs.none()
+
+    total = qs.count()
+    en_manos = qs.filter(ubicacion__estado="PERSONA").count()
     en_estante = total - en_manos
-    recientes = Producto.objects.order_by("-creado")[:8]
+    recientes = qs.order_by("-creado")[:8]
     ctx = {
         "total": total,
         "en_manos": en_manos,

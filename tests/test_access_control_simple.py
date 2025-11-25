@@ -8,13 +8,13 @@ from almacen.context_processors import aula_context
 
 @pytest.mark.django_db
 class TestAccessControlBasic(TestCase):
-    """Basic tests for the access control functionality."""
+    """Pruebas básicas para la funcionalidad de control de acceso."""
 
     def setUp(self):
-        """Set up test data."""
+        """Configurar datos de prueba."""
         self.factory = RequestFactory()
 
-        # Create users (Persona will be created automatically by signal)
+        # Crear users (Persona will be created automatically by signal)
         self.staff_user = User.objects.create_user(
             username="staff_user", email="staff@example.com", password="testpass123"
         )
@@ -25,27 +25,27 @@ class TestAccessControlBasic(TestCase):
             username="regular_user", email="regular@example.com", password="testpass123"
         )
 
-        # Create aulas
+        # Crear aulas
         self.aula1 = Aula.objects.create(nombre="Aula 101")
         self.aula2 = Aula.objects.create(nombre="Aula 102")
 
-        # Get personas that were created by signal
+        # Obtener personas that were created by signal
         self.staff_persona = self.staff_user.persona
         self.regular_persona = self.regular_user.persona
 
     def test_persona_access_methods(self):
-        """Test the Persona access control methods."""
-        # Test staff has unrestricted access
+        """Prueba los métodos de control de acceso de Persona."""
+        # Prueba staff has unrestricted access
         self.assertTrue(self.staff_persona.has_aula_access(self.aula1))
         self.assertTrue(self.staff_persona.has_aula_access(self.aula2))
         self.assertEqual(self.staff_persona.get_aulas_access().count(), 2)
 
-        # Test regular user has no access by default (new behavior)
+        # Prueba regular user has no access by default (new behavior)
         self.assertFalse(self.regular_persona.has_aula_access(self.aula1))
         self.assertFalse(self.regular_persona.has_aula_access(self.aula2))
         self.assertEqual(self.regular_persona.get_aulas_access().count(), 0)
 
-        # Test restricting regular user
+        # Prueba restricting regular user
         self.regular_persona.aulas_access.add(self.aula1)
         self.regular_persona.aulas_access.add(self.aula2)
 
@@ -53,23 +53,23 @@ class TestAccessControlBasic(TestCase):
         self.assertTrue(self.regular_persona.has_aula_access(self.aula2))
         self.assertEqual(self.regular_persona.get_aulas_access().count(), 2)
 
-        # Test removing access to one aula
+        # Prueba removing access to one aula
         self.regular_persona.aulas_access.remove(self.aula2)
         self.assertTrue(self.regular_persona.has_aula_access(self.aula1))
         self.assertFalse(self.regular_persona.has_aula_access(self.aula2))
 
-        # Test clearing access (should give no access with new behavior)
+        # Prueba clearing access (should give no access with new behavior)
         self.regular_persona.aulas_access.clear()
         self.assertFalse(self.regular_persona.has_aula_access(self.aula1))
         self.assertFalse(self.regular_persona.has_aula_access(self.aula2))
         self.assertEqual(self.regular_persona.get_aulas_access().count(), 0)
 
     def test_get_current_aula_with_access_control(self):
-        """Test get_current_aula function with access control."""
+        """Prueba la función get_current_aula con control de acceso."""
         # Restrict regular user to only aula1
         self.regular_persona.aulas_access.add(self.aula1)
 
-        # Test staff can access any aula
+        # Prueba staff can access any aula
         request = self.factory.get(f"/?aula={self.aula2.id}")
         request.user = self.staff_user
         request.session = {}
@@ -77,7 +77,7 @@ class TestAccessControlBasic(TestCase):
         current_aula = get_current_aula(request)
         self.assertEqual(current_aula, self.aula2)
 
-        # Test restricted user can access assigned aula
+        # Prueba usuario restringido can access assigned aula
         request = self.factory.get(f"/?aula={self.aula1.id}")
         request.user = self.regular_user
         request.session = {}
@@ -85,7 +85,7 @@ class TestAccessControlBasic(TestCase):
         current_aula = get_current_aula(request)
         self.assertEqual(current_aula, self.aula1)
 
-        # Test restricted user cannot access unassigned aula
+        # Prueba usuario restringido cannot access unassigned aula
         request = self.factory.get(f"/?aula={self.aula2.id}")
         request.user = self.regular_user
         request.session = {}
@@ -94,18 +94,18 @@ class TestAccessControlBasic(TestCase):
         self.assertIsNone(current_aula)
 
     def test_persona_string_representation(self):
-        """Test Persona __str__ method."""
+        """Prueba el método __str__ de Persona."""
         expected_str = self.staff_user.get_full_name() or self.staff_user.email
         self.assertEqual(str(self.staff_persona), expected_str)
 
 
 @pytest.mark.django_db
 class TestAccessControlWithProducts(TestCase):
-    """Test access control with product relationships."""
+    """Prueba el control de acceso con relaciones de productos."""
 
     def setUp(self):
-        """Set up test data."""
-        # Create users (Persona will be created automatically by signal)
+        """Configurar datos de prueba."""
+        # Crear users (Persona will be created automatically by signal)
         self.staff_user = User.objects.create_user(
             username="staff_user2", email="staff2@example.com", password="testpass123"
         )
@@ -118,18 +118,18 @@ class TestAccessControlWithProducts(TestCase):
             password="testpass123",
         )
 
-        # Create aulas
+        # Crear aulas
         self.aula1 = Aula.objects.create(nombre="Aula 201")
         self.aula2 = Aula.objects.create(nombre="Aula 202")
 
-        # Get personas that were created by signal
+        # Obtener personas that were created by signal
         self.staff_persona = self.staff_user.persona
         self.restricted_persona = self.restricted_user.persona
 
         # Restrict user to only aula1
         self.restricted_persona.aulas_access.add(self.aula1)
 
-        # Create products
+        # Crear productos
         self.product1 = Producto.objects.create(
             epc="EPC001", nombre="Product 1", aula=self.aula1
         )
@@ -138,25 +138,25 @@ class TestAccessControlWithProducts(TestCase):
         )
 
     def test_product_access_by_aula(self):
-        """Test that access control works with products."""
-        # Staff can access products from any aula
+        """Prueba que el control de acceso funciona con productos."""
+        # Staff can access productos from any aula
         self.assertTrue(self.staff_persona.has_aula_access(self.product1.aula))
         self.assertTrue(self.staff_persona.has_aula_access(self.product2.aula))
 
-        # Restricted user can only access products from accessible aulas
+        # Restricted user can only access productos from aulas accesibles
         self.assertTrue(self.restricted_persona.has_aula_access(self.product1.aula))
         self.assertFalse(self.restricted_persona.has_aula_access(self.product2.aula))
 
     def test_persona_last_aula_preference(self):
-        """Test that Persona.last_aula works with access control."""
+        """Prueba que Persona.last_aula funciona con control de acceso."""
         # Set last_aula to accessible aula
         self.restricted_persona.last_aula = self.aula1
         self.restricted_persona.save()
 
         self.assertEqual(self.restricted_persona.last_aula, self.aula1)
 
-        # Try to set last_aula to inaccessible aula (should be allowed in model,
-        # but views will enforce access control)
+        # Try to set last_aula to inaccessible aula (debería ser allowed in model,
+        # but views will enforce control de acceso)
         self.restricted_persona.last_aula = self.aula2
         self.restricted_persona.save()
 
@@ -169,13 +169,13 @@ class TestAccessControlWithProducts(TestCase):
 
 @pytest.mark.django_db
 class TestNavbarAulaFiltering(TestCase):
-    """Test navbar aula filtering in context processor."""
+    """Prueba navbar aula filtering in context processor."""
 
     def setUp(self):
-        """Set up test data."""
+        """Configurar datos de prueba."""
         self.factory = RequestFactory()
 
-        # Create users
+        # Crear users
         self.staff_user = User.objects.create_user(
             username="staff_nav", email="staffnav@example.com", password="testpass123"
         )
@@ -194,12 +194,12 @@ class TestNavbarAulaFiltering(TestCase):
             password="testpass123",
         )
 
-        # Create aulas
+        # Crear aulas
         self.aula1 = Aula.objects.create(nombre="Aula 301")
         self.aula2 = Aula.objects.create(nombre="Aula 302")
         self.aula3 = Aula.objects.create(nombre="Aula 303")
 
-        # Get personas created by signal
+        # Obtener personas created by signal
         self.staff_persona = self.staff_user.persona
         self.regular_persona = self.regular_user.persona
         self.restricted_persona = self.restricted_user.persona
@@ -208,14 +208,14 @@ class TestNavbarAulaFiltering(TestCase):
         self.restricted_persona.aulas_access.add(self.aula1, self.aula2)
 
     def test_context_processor_staff_user_sees_all_aulas(self):
-        """Test that staff users see all aulas in navbar."""
+        """Prueba that usuario staffs see all aulas in navbar."""
         request = self.factory.get("/")
         request.user = self.staff_user
         request.session = {}
 
         context = aula_context(request)
 
-        # Staff should see all aulas
+        # Staff debería ver all aulas
         self.assertEqual(context["ctx_all_aulas"].count(), 3)
         aula_names = list(context["ctx_all_aulas"].values_list("nombre", flat=True))
         self.assertIn("Aula 301", aula_names)
@@ -223,25 +223,25 @@ class TestNavbarAulaFiltering(TestCase):
         self.assertIn("Aula 303", aula_names)
 
     def test_context_processor_regular_user_sees_no_aulas_by_default(self):
-        """Test that regular users with no restrictions see no aulas (new behavior)."""
+        """Prueba that regular users with no restrictions see no aulas (new behavior)."""
         request = self.factory.get("/")
         request.user = self.regular_user
         request.session = {}
 
         context = aula_context(request)
 
-        # Regular user with no assigned aulas should see no aulas
+        # Regular user with no assigned aulas debería ver no aulas
         self.assertEqual(context["ctx_all_aulas"].count(), 0)
 
     def test_context_processor_restricted_user_sees_only_allowed_aulas(self):
-        """Test that restricted users see only their assigned aulas."""
+        """Prueba that usuario restringidos see only their assigned aulas."""
         request = self.factory.get("/")
         request.user = self.restricted_user
         request.session = {}
 
         context = aula_context(request)
 
-        # Restricted user should see only assigned aulas (aula1 and aula2)
+        # Restricted user debería ver only assigned aulas (aula1 and aula2)
         self.assertEqual(context["ctx_all_aulas"].count(), 2)
         aula_names = list(context["ctx_all_aulas"].values_list("nombre", flat=True))
         self.assertIn("Aula 301", aula_names)
@@ -249,19 +249,19 @@ class TestNavbarAulaFiltering(TestCase):
         self.assertNotIn("Aula 303", aula_names)
 
     def test_context_processor_anonymous_user_sees_no_aulas(self):
-        """Test that anonymous users see no aulas (new behavior)."""
+        """Prueba that anonymous users see no aulas (new behavior)."""
         request = self.factory.get("/")
         request.user = AnonymousUser()
         request.session = {}
 
         context = aula_context(request)
 
-        # Anonymous users should see no aulas
+        # Anonymous users debería ver no aulas
         self.assertEqual(context["ctx_all_aulas"].count(), 0)
 
     def test_context_processor_user_without_persona_sees_no_aulas(self):
-        """Test fallback behavior when user has no Persona object."""
-        # Create user without triggering Persona creation signal
+        """Prueba fallback behavior when user has no Persona object."""
+        # Crear user without triggering Persona creation signal
         user_without_persona = User.objects.create_user(
             username="no_persona", email="nopersona@example.com", password="testpass123"
         )
@@ -272,5 +272,5 @@ class TestNavbarAulaFiltering(TestCase):
 
         context = aula_context(request)
 
-        # Non-staff users without Persona should see no aulas
+        # Non-usuario staffs without Persona debería ver no aulas
         self.assertEqual(context["ctx_all_aulas"].count(), 0)
