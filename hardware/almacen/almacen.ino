@@ -32,7 +32,7 @@ unsigned long lastDebugTime = 0;
 unsigned long lastCleanupTime = 0;
 
 //Comentar esta linea para eliminar el modo DEBUG
-// #define DEBUG 1
+#define DEBUG 1
 
 
 void setup() {

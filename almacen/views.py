@@ -30,22 +30,38 @@ def is_teacher(user):
 
 
 def get_current_aula(request):
-    """Priority: GET ?aula -> session -> user's Persona.last_aula."""
+    """Priority: GET ?aula -> session -> user's Persona.last_aula (with access control)."""
     aula_id = request.GET.get("aula")
     if aula_id:
         try:
-            return Aula.objects.get(pk=aula_id)
+            aula = Aula.objects.get(pk=aula_id)
+            if request.user and request.user.is_authenticated:
+                try:
+                    persona = request.user.persona
+                    if persona.has_aula_access(aula):
+                        return aula
+                except Persona.DoesNotExist:
+                    pass
+            return None
         except Aula.DoesNotExist:
             return None
     # session
     sid = request.session.get("current_aula_id")
     if sid:
         try:
-            return Aula.objects.get(pk=sid)
+            aula = Aula.objects.get(pk=sid)
+            if request.user and request.user.is_authenticated:
+                try:
+                    persona = request.user.persona
+                    if persona.has_aula_access(aula):
+                        return aula
+                except Persona.DoesNotExist:
+                    pass
+            return None
         except Aula.DoesNotExist:
             pass
     # user preference
-    if request.user.is_authenticated:
+    if request.user and request.user.is_authenticated:
         try:
             persona = request.user.persona
             return persona.last_aula  # may be None
@@ -71,8 +87,42 @@ def dashboard(request):
 
 @login_required
 def inventory(request):
-    qs = filter_inventory(Producto.objects.all(), request.GET.get("q"))
-    ctx = {"productos": qs, "q": request.GET.get("q", "")}
+    """Main inventory view with access control."""
+    qs = Producto.objects.all()
+    current_aula = get_current_aula(request)
+
+    # Apply access control
+    if request.user.is_authenticated:
+        try:
+            persona = request.user.persona
+            if not persona.user.is_staff:
+                # For non-staff users, filter by accessible aulas
+                accessible_aulas = persona.get_aulas_access()
+                if current_aula:
+                    # If there's a current aula, only show products from that aula
+                    # if user has access to it
+                    if persona.has_aula_access(current_aula):
+                        qs = qs.filter(aula=current_aula)
+                    else:
+                        qs = qs.none()
+                else:
+                    # Show all products from accessible aulas
+                    qs = qs.filter(aula__in=accessible_aulas)
+            else:
+                # Staff users can see all products, but filter by current aula if set
+                if current_aula:
+                    qs = qs.filter(aula=current_aula)
+        except Persona.DoesNotExist:
+            qs = qs.none()
+    else:
+        qs = qs.none()
+
+    qs = filter_inventory(qs, request.GET.get("q"))
+    ctx = {
+        "productos": qs,
+        "q": request.GET.get("q", ""),
+        "current_aula": current_aula,
+    }
     return render(request, "almacen/inventory.html", ctx)
 
 
@@ -81,6 +131,16 @@ def inventory_row(request, pk: int):
     producto = get_object_or_404(
         Producto.objects.select_related("ubicacion", "aula"), pk=pk
     )
+
+    # Check access permissions for non-staff users
+    if request.user.is_authenticated:
+        try:
+            persona = request.user.persona
+            if not persona.has_aula_access(producto.aula):
+                return HttpResponse(status=403)  # Forbidden
+        except Persona.DoesNotExist:
+            return HttpResponse(status=403)  # Forbidden
+
     return render(request, "almacen/_product_row.partial.html", {"p": producto})
 
 
@@ -241,6 +301,16 @@ def prestamos_overview(request):
     ubicaciones = Ubicacion.objects.select_related("producto", "persona").filter(
         estado="PERSONA"
     )
+
+    # Filter by accessible aulas for non-staff users
+    if request.user.is_authenticated and not request.user.is_staff:
+        try:
+            persona = request.user.persona
+            accessible_aulas = persona.get_aulas_access()
+            ubicaciones = ubicaciones.filter(producto__aula__in=accessible_aulas)
+        except Persona.DoesNotExist:
+            ubicaciones = ubicaciones.none()
+
     return render(
         request, "almacen/prestamos_overview.html", {"ubicaciones": ubicaciones}
     )
@@ -251,8 +321,20 @@ def toggle_prestamo(request, pk: int):
     producto = get_object_or_404(
         Producto.objects.select_related("ubicacion", "aula"), pk=pk
     )
+
+    # Check access permissions for non-staff users
+    if request.user.is_authenticated:
+        try:
+            persona = request.user.persona
+            if not persona.has_aula_access(producto.aula):
+                return HttpResponseBadRequest(
+                    "No tienes acceso a productos de esta aula."
+                )
+        except Persona.DoesNotExist:
+            return HttpResponseBadRequest("No tienes acceso a productos de esta aula.")
+
     try:
-        u = producto.ubicacion
+        u = producto.ubicacion  # type: ignore[attr-defined]
     except Ubicacion.DoesNotExist:
         u = Ubicacion.objects.create(
             producto=producto, estado="ESTANTE", aula=producto.aula
@@ -295,17 +377,24 @@ def toggle_prestamo(request, pk: int):
 @require_POST
 def set_current_aula(request):
     aula_id = request.POST.get("aula_id")
-    if aula_id is None or aula_id=="":
+    if aula_id is None or aula_id == "":
         return redirect("almacen:inventory")
+
     try:
         aula = Aula.objects.all().get(pk=aula_id)
     except Aula.DoesNotExist:
         messages.error(request, "Aula no encontrada.")
         return redirect(request.META.get("HTTP_REFERER", "almacen:inventory"))
+
+    # Check access permissions
+    persona, _ = Persona.objects.get_or_create(user=request.user)
+    if not persona.has_aula_access(aula):
+        messages.error(request, "No tienes acceso a esta aula.")
+        return redirect(request.META.get("HTTP_REFERER", "almacen:inventory"))
+
     # session
     request.session["current_aula_id"] = aula.id
     # persist on Persona
-    persona, _ = Persona.objects.get_or_create(user=request.user)
     persona.last_aula = aula
     persona.save()
     messages.success(request, f"Aula seleccionada: {aula}")
@@ -313,21 +402,6 @@ def set_current_aula(request):
     if request.htmx:
         return redirect("almacen:inventory")
     return redirect(request.META.get("HTTP_REFERER", "almacen:inventory"))
-
-
-@profesores_required
-def inventory(request):
-    current_aula = get_current_aula(request)
-    qs = Producto.objects.all()
-    if current_aula:
-        qs = qs.filter(aula=current_aula)
-    qs = filter_inventory(qs, request.GET.get("q"))
-    ctx = {
-        "productos": qs,
-        "q": request.GET.get("q", ""),
-        "current_aula": current_aula,
-    }
-    return render(request, "almacen/inventory.html", ctx)
 
 
 @profesores_required
@@ -343,7 +417,6 @@ def aulas_list_create(request):
         form = AulaForm()
     aulas = Aula.objects.all().order_by("nombre")
     return render(request, "almacen/aulas.html", {"form": form, "aulas": aulas})
-
 
 
 @profesores_required

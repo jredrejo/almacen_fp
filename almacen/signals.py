@@ -18,5 +18,5 @@ def create_persona_for_user(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=User)
 def save_persona_for_user(sender, instance, **kwargs):
-    if hasattr(instance, 'persona'):
+    if hasattr(instance, "persona"):
         instance.persona.save()

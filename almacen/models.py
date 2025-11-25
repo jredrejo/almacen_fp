@@ -68,9 +68,31 @@ class Persona(models.Model):
         on_delete=models.SET_NULL,
         related_name="preferida_por",
     )
+    aulas_access: "models.ManyToManyField" = models.ManyToManyField(  # type: ignore[assignment]
+        "Aula",
+        blank=True,
+        verbose_name="Aulas accesibles",
+        help_text="Aulas a las que esta persona tiene acceso. Si está vacío, tiene acceso a todas las aulas.",
+    )
     epc = models.CharField(
         "EPC", max_length=96, unique=True, default=None, blank=True, null=True
     )
+
+    def get_aulas_access(self):
+        """Return list of accessible Aulas. If user is staff or aulas_access is empty, return all aulas."""
+        if self.user.is_staff:
+            return Aula.objects.all()
+        accessible_aulas = self.aulas_access.all()
+        if not accessible_aulas.exists():
+            return Aula.objects.all()
+        return accessible_aulas
+
+    def has_aula_access(self, aula):
+        """Check if user has access to specific aula."""
+        if self.user.is_staff:
+            return True
+        accessible_aulas = self.aulas_access.all()
+        return not accessible_aulas.exists() or aula in accessible_aulas
 
     def __str__(self):
         return self.user.get_full_name() or self.user.email
@@ -119,7 +141,7 @@ class Prestamo(models.Model):
     producto = models.ForeignKey(
         Producto, on_delete=models.CASCADE, related_name="prestamos"
     )
-    usuario = models.ForeignKey(
+    usuario = models.ForeignKey(  # type: ignore[call-overload]
         User,
         on_delete=models.PROTECT,
         related_name="prestamos",

@@ -28,5 +28,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"Added {added} users to ProfesoresFP"))
         if missing:
             self.stdout.write(
-                self.style.WARNING(f"Missing users (create them first): {', '.join(missing)}")
+                self.style.WARNING(
+                    f"Missing users (create them first): {', '.join(missing)}"
+                )
             )
