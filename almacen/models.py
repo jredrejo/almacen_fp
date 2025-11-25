@@ -1,5 +1,5 @@
-from django.db import models
 from django.contrib.auth import get_user_model
+from django.db import models
 
 User = get_user_model()
 
@@ -16,10 +16,10 @@ class Aula(models.Model):
 
 
 class Producto(models.Model):
-    # RFID EPC code (read by the reader; typically keyboard wedge)
+    # Código EPC RFID (leído por el lector; típicamente emulación de teclado)
     epc = models.CharField("EPC", max_length=96, unique=True)
     nombre = models.CharField(max_length=255)
-    posicion = models.CharField(max_length=100, blank=True)  # slot/position label
+    posicion = models.CharField(max_length=100, blank=True)
     n_serie = models.CharField("Nº de serie", max_length=255, blank=True)
     foto = models.ImageField(upload_to="productos/", blank=True, null=True)
     aula = models.ForeignKey(Aula, on_delete=models.PROTECT, related_name="productos")
@@ -33,9 +33,9 @@ class Producto(models.Model):
 
     @property
     def current_prestamo(self):
-        # requires Prestamo(producto=..., devuelto_en is null) to mean "currently taken"
+        # requiere Prestamo(producto=..., devuelto_en is null) para significar "actualmente tomado"
         return (
-            self.prestamos.filter(devuelto_en__isnull=True)
+            self.prestamos.filter(devuelto_en__isnull=True)  # type: ignore[attr-defined]
             .select_related("usuario")
             .first()
         )
@@ -107,7 +107,7 @@ class Ubicacion(models.Model):
         Producto, on_delete=models.CASCADE, related_name="ubicacion"
     )
     estado = models.CharField(max_length=10, choices=ESTADO_CHOICES, default="ESTANTE")
-    # When on shelf:
+    # Cuando está en estantería:
     aula = models.ForeignKey(
         Aula,
         on_delete=models.PROTECT,
@@ -117,7 +117,7 @@ class Ubicacion(models.Model):
     )
     estanteria = models.CharField(max_length=100, blank=True)
     posicion = models.CharField(max_length=100, blank=True)
-    # When taken:
+    # Cuando está tomado:
     persona = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
@@ -136,7 +136,7 @@ class Ubicacion(models.Model):
 
 
 class Prestamo(models.Model):
-    """History of take/return actions for quick glance & audit."""
+    """Historial de acciones de tomar/devolver para consulta rápida y auditoría."""
 
     producto = models.ForeignKey(
         Producto, on_delete=models.CASCADE, related_name="prestamos"

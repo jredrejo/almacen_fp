@@ -1,7 +1,6 @@
 # almacen/decorators.py
 from functools import wraps
 
-from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect
 from django.urls import reverse

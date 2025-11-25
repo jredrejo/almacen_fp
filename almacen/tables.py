@@ -1,5 +1,4 @@
 from django.db.models import Q
-from .models import Producto
 
 
 def filter_inventory(qs, q: str | None):

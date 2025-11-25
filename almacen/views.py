@@ -1,9 +1,8 @@
 from datetime import timedelta
-from sqlite3.dbapi2 import Time
-import time
-from django.core.cache import caches
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.cache import caches
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -11,10 +10,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .decorators import profesores_required
-from .models import Producto, Ubicacion, Prestamo, Aula, Persona
-from .forms import ProductoForm, AulaForm
-from .forms import PersonaEPCForm
-
+from .forms import AulaForm, PersonaEPCForm, ProductoForm
+from .models import Aula, Persona, Prestamo, Producto, Ubicacion
 from .tables import filter_inventory
 
 # --- Configuración de Caché ---
@@ -30,7 +27,7 @@ def is_teacher(user):
 
 
 def get_current_aula(request):
-    """Priority: GET ?aula -> session -> user's Persona.last_aula (with access control)."""
+    """Prioridad: GET ?aula -> sesión -> Persona.last_aula del usuario (con control de acceso)."""
     aula_id = request.GET.get("aula")
     if aula_id:
         try:
@@ -64,7 +61,7 @@ def get_current_aula(request):
     if request.user and request.user.is_authenticated:
         try:
             persona = request.user.persona
-            return persona.last_aula  # may be None
+            return persona.last_aula  # puede ser None
         except Persona.DoesNotExist:
             pass
     return None
@@ -91,25 +88,25 @@ def inventory(request):
     qs = Producto.objects.all()
     current_aula = get_current_aula(request)
 
-    # Apply access control
+    # Aplicar control de acceso
     if request.user.is_authenticated:
         try:
             persona = request.user.persona
             if not persona.user.is_staff:
-                # For non-staff users, filter by accessible aulas
+                # Para usuarios no staff, filtrar por aulas accesibles
                 accessible_aulas = persona.get_aulas_access()
                 if current_aula:
-                    # If there's a current aula, only show products from that aula
-                    # if user has access to it
+                    # Si hay un aula actual, solo mostrar productos de ese aula
+                    # si el usuario tiene acceso a él
                     if persona.has_aula_access(current_aula):
                         qs = qs.filter(aula=current_aula)
                     else:
                         qs = qs.none()
                 else:
-                    # Show all products from accessible aulas
+                    # Mostrar todos los productos de aulas accesibles
                     qs = qs.filter(aula__in=accessible_aulas)
             else:
-                # Staff users can see all products, but filter by current aula if set
+                # Los usuarios staff pueden ver todos los productos, pero filtrar por aula actual si está establecida
                 if current_aula:
                     qs = qs.filter(aula=current_aula)
         except Persona.DoesNotExist:
@@ -132,25 +129,16 @@ def inventory_row(request, pk: int):
         Producto.objects.select_related("ubicacion", "aula"), pk=pk
     )
 
-    # Check access permissions for non-staff users
+    # Verificar permisos de acceso para usuarios no staff
     if request.user.is_authenticated:
         try:
             persona = request.user.persona
             if not persona.has_aula_access(producto.aula):
-                return HttpResponse(status=403)  # Forbidden
+                return HttpResponse(status=403)  # Prohibido
         except Persona.DoesNotExist:
-            return HttpResponse(status=403)  # Forbidden
+            return HttpResponse(status=403)  # Prohibido
 
     return render(request, "almacen/_product_row.partial.html", {"p": producto})
-
-
-from django.contrib import messages
-
-
-# almacen/views.py
-from django.contrib import messages
-from django.shortcuts import redirect, render
-from django.urls import reverse
 
 
 @profesores_required
@@ -322,7 +310,7 @@ def toggle_prestamo(request, pk: int):
         Producto.objects.select_related("ubicacion", "aula"), pk=pk
     )
 
-    # Check access permissions for non-staff users
+    # Verificar permisos de acceso para usuarios no staff
     if request.user.is_authenticated:
         try:
             persona = request.user.persona
@@ -381,7 +369,7 @@ def set_current_aula(request):
         return redirect("almacen:inventory")
 
     try:
-        aula = Aula.objects.all().get(pk=aula_id)
+        aula: Aula = Aula.objects.get(pk=aula_id)
     except Aula.DoesNotExist:
         messages.error(request, "Aula no encontrada.")
         return redirect(request.META.get("HTTP_REFERER", "almacen:inventory"))
@@ -393,9 +381,9 @@ def set_current_aula(request):
         return redirect(request.META.get("HTTP_REFERER", "almacen:inventory"))
 
     # session
-    request.session["current_aula_id"] = aula.id
+    request.session["current_aula_id"] = aula.id  # type: ignore[attr-defined]
     # persist on Persona
-    persona.last_aula = aula
+    persona.last_aula = aula  # type: ignore[assignment]
     persona.save()
     messages.success(request, f"Aula seleccionada: {aula}")
     # HX: if HTMX, just refresh navbar/inventory; otherwise redirect back

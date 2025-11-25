@@ -3,13 +3,14 @@ import logging
 import os
 from collections import defaultdict
 from datetime import datetime, timedelta
-import paho.mqtt.client as mqtt
 
-from django.core.management.base import BaseCommand
-from django.utils import timezone
+import paho.mqtt.client as mqtt
 from django.core.cache import caches
+from django.core.management.base import BaseCommand
 from django.db import transaction
-from almacen.models import Aula, Producto, Persona, Prestamo
+from django.utils import timezone
+
+from almacen.models import Aula, Persona, Prestamo, Producto
 
 # Obtener un logger con el nombre del módulo/comando
 logger = logging.getLogger(__name__)
@@ -47,14 +48,12 @@ class BatchProcessor:
 
     def add_epc(self, aula_id, epc, timestamp):
         """Agrega un EPC al batch. NO procesa inmediatamente."""
-        now = timezone.now()
-
         # Agregar el nuevo EPC al batch
         self.batches[aula_id].append((epc, timestamp))
 
         # Actualizar el timestamp de la última lectura para este aula
         # Esto "reinicia" el timer del batch cada vez que llega un nuevo EPC
-        self.last_epc_time[aula_id] = now
+        self.last_epc_time[aula_id] = timestamp
 
         logger.debug(
             f"EPC '{epc}' agregado al batch del Aula {aula_id}. Total en batch: {len(self.batches[aula_id])}"
@@ -78,8 +77,6 @@ class BatchProcessor:
     def _process_batch(self, aula_id):
         """Procesa un batch completo de EPCs para un aula."""
         batch = self.batches[aula_id]
-        self.batches[aula_id] = []
-        del self.last_epc_time[aula_id]
 
         if not batch:
             return
@@ -90,9 +87,15 @@ class BatchProcessor:
             self._process_batch_logic(aula_id, batch)
         except Exception as e:
             logger.exception(f"Error procesando batch para Aula {aula_id}: {e}")
+        finally:
+            # Siempre limpiar el batch después de procesarlo
+            if aula_id in self.batches:
+                del self.batches[aula_id]
+            if aula_id in self.last_epc_time:
+                del self.last_epc_time[aula_id]
 
     def _process_batch_logic(self, aula_id, batch):
-        """Lógica principal de procesamiento del batch."""
+        """Lógica principal para procesar el batch."""
         # Extraer EPCs únicos y usar el timestamp más reciente para cada uno
         epc_dict = {}
         for epc, timestamp in batch:
@@ -137,7 +140,7 @@ class BatchProcessor:
             )
 
         if not producto_epcs:
-            logger.info(f"Batch solo contiene Persona, no hay productos para procesar.")
+            logger.info("Batch solo contiene Persona, no hay productos para procesar.")
             return
 
         # Procesar cada producto
@@ -221,7 +224,7 @@ class BatchProcessor:
             else:
                 # PRÉSTAMO: El producto no está prestado, crear nuevo préstamo
                 # En modo WITHOUT_PERSONA, persona puede ser None
-                nuevo_prestamo = Prestamo.objects.create(
+                Prestamo.objects.create(
                     producto=producto, usuario=persona, tomado_en=timestamp
                 )
 
@@ -257,7 +260,7 @@ class BatchProcessor:
 
 
 class Command(BaseCommand):
-    help = "Escucha mensajes MQTT para EPC de RFID con procesamiento por lotes."
+    help = "Escucha mensajes MQTT para EPC de RFID con proceso por lotes."
 
     def add_arguments(self, parser):
         parser.add_argument(
