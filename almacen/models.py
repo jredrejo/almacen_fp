@@ -79,20 +79,16 @@ class Persona(models.Model):
     )
 
     def get_aulas_access(self):
-        """Return list of accessible Aulas. If user is staff or aulas_access is empty, return all aulas."""
+        """Return list of accessible Aulas. Staff users see all aulas, others see only assigned aulas."""
         if self.user.is_staff:
             return Aula.objects.all()
-        accessible_aulas = self.aulas_access.all()
-        if not accessible_aulas.exists():
-            return Aula.objects.all()
-        return accessible_aulas
+        return self.aulas_access.all()
 
     def has_aula_access(self, aula):
         """Check if user has access to specific aula."""
         if self.user.is_staff:
             return True
-        accessible_aulas = self.aulas_access.all()
-        return not accessible_aulas.exists() or aula in accessible_aulas
+        return aula in self.aulas_access.all()
 
     def __str__(self):
         return self.user.get_full_name() or self.user.email

@@ -40,10 +40,10 @@ class TestAccessControlBasic(TestCase):
         self.assertTrue(self.staff_persona.has_aula_access(self.aula2))
         self.assertEqual(self.staff_persona.get_aulas_access().count(), 2)
 
-        # Test regular user has unrestricted access by default
-        self.assertTrue(self.regular_persona.has_aula_access(self.aula1))
-        self.assertTrue(self.regular_persona.has_aula_access(self.aula2))
-        self.assertEqual(self.regular_persona.get_aulas_access().count(), 2)
+        # Test regular user has no access by default (new behavior)
+        self.assertFalse(self.regular_persona.has_aula_access(self.aula1))
+        self.assertFalse(self.regular_persona.has_aula_access(self.aula2))
+        self.assertEqual(self.regular_persona.get_aulas_access().count(), 0)
 
         # Test restricting regular user
         self.regular_persona.aulas_access.add(self.aula1)
@@ -58,11 +58,11 @@ class TestAccessControlBasic(TestCase):
         self.assertTrue(self.regular_persona.has_aula_access(self.aula1))
         self.assertFalse(self.regular_persona.has_aula_access(self.aula2))
 
-        # Test clearing access (should give unrestricted access again)
+        # Test clearing access (should give no access with new behavior)
         self.regular_persona.aulas_access.clear()
-        self.assertTrue(self.regular_persona.has_aula_access(self.aula1))
-        self.assertTrue(self.regular_persona.has_aula_access(self.aula2))
-        self.assertEqual(self.regular_persona.get_aulas_access().count(), 2)
+        self.assertFalse(self.regular_persona.has_aula_access(self.aula1))
+        self.assertFalse(self.regular_persona.has_aula_access(self.aula2))
+        self.assertEqual(self.regular_persona.get_aulas_access().count(), 0)
 
     def test_get_current_aula_with_access_control(self):
         """Test get_current_aula function with access control."""
@@ -222,20 +222,16 @@ class TestNavbarAulaFiltering(TestCase):
         self.assertIn("Aula 302", aula_names)
         self.assertIn("Aula 303", aula_names)
 
-    def test_context_processor_regular_user_sees_all_aulas_by_default(self):
-        """Test that regular users with no restrictions see all aulas."""
+    def test_context_processor_regular_user_sees_no_aulas_by_default(self):
+        """Test that regular users with no restrictions see no aulas (new behavior)."""
         request = self.factory.get("/")
         request.user = self.regular_user
         request.session = {}
 
         context = aula_context(request)
 
-        # Regular user with no restrictions should see all aulas
-        self.assertEqual(context["ctx_all_aulas"].count(), 3)
-        aula_names = list(context["ctx_all_aulas"].values_list("nombre", flat=True))
-        self.assertIn("Aula 301", aula_names)
-        self.assertIn("Aula 302", aula_names)
-        self.assertIn("Aula 303", aula_names)
+        # Regular user with no assigned aulas should see no aulas
+        self.assertEqual(context["ctx_all_aulas"].count(), 0)
 
     def test_context_processor_restricted_user_sees_only_allowed_aulas(self):
         """Test that restricted users see only their assigned aulas."""
@@ -252,22 +248,18 @@ class TestNavbarAulaFiltering(TestCase):
         self.assertIn("Aula 302", aula_names)
         self.assertNotIn("Aula 303", aula_names)
 
-    def test_context_processor_anonymous_user_sees_all_aulas(self):
-        """Test that anonymous users see all aulas (fallback)."""
+    def test_context_processor_anonymous_user_sees_no_aulas(self):
+        """Test that anonymous users see no aulas (new behavior)."""
         request = self.factory.get("/")
         request.user = AnonymousUser()
         request.session = {}
 
         context = aula_context(request)
 
-        # Anonymous users should see all aulas as fallback
-        self.assertEqual(context["ctx_all_aulas"].count(), 3)
-        aula_names = list(context["ctx_all_aulas"].values_list("nombre", flat=True))
-        self.assertIn("Aula 301", aula_names)
-        self.assertIn("Aula 302", aula_names)
-        self.assertIn("Aula 303", aula_names)
+        # Anonymous users should see no aulas
+        self.assertEqual(context["ctx_all_aulas"].count(), 0)
 
-    def test_context_processor_user_without_persona_sees_all_aulas(self):
+    def test_context_processor_user_without_persona_sees_no_aulas(self):
         """Test fallback behavior when user has no Persona object."""
         # Create user without triggering Persona creation signal
         user_without_persona = User.objects.create_user(
@@ -280,5 +272,5 @@ class TestNavbarAulaFiltering(TestCase):
 
         context = aula_context(request)
 
-        # Should fall back to showing all aulas
-        self.assertEqual(context["ctx_all_aulas"].count(), 3)
+        # Non-staff users without Persona should see no aulas
+        self.assertEqual(context["ctx_all_aulas"].count(), 0)

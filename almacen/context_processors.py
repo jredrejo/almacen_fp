@@ -11,10 +11,14 @@ def aula_context(request):
             persona = request.user.persona
             aulas = persona.get_aulas_access().order_by("nombre")
         except Persona.DoesNotExist:
-            # If no Persona exists, show all aulas (fallback)
-            aulas = Aula.objects.order_by("nombre")
+            # If no Persona exists, show no aulas for non-staff users
+            aulas = (
+                Aula.objects.order_by("nombre")
+                if request.user.is_staff
+                else Aula.objects.none()
+            )
     else:
-        # Anonymous users see all aulas (though they shouldn't have access)
-        aulas = Aula.objects.order_by("nombre")
+        # Anonymous users see no aulas
+        aulas = Aula.objects.none()
 
     return {"ctx_current_aula": current, "ctx_all_aulas": aulas}
