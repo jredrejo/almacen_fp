@@ -16,6 +16,14 @@ void envio_datos(uint8_t* uid) {
            timestamp);
 
   char topic[64];
+  snprintf(topic, sizeof(topic), "rfid/pantalla/%s", clientId);
+
+  if (!client.publish(topic, "1")) {
+#ifdef DEBUG
+    Serial.println("Error MQTT publicación pantalla");
+#endif
+  }
+
   snprintf(topic, sizeof(topic), "rfid/lectura/%s", clientId);
 
   if (!client.publish(topic, payload)) {
