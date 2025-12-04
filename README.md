@@ -11,6 +11,7 @@ Esta aplicación está pensada para usarla para gestionar el almacén de un inst
 ## 🏗️ Arquitectura Tecnológica
 
 ### Stack Principal
+
 - **Django 5.2** - Framework web Python con base de datos SQLite
 - **Python 3.11+** - Lenguaje de programación principal
 - **HTMX + Bootstrap** - Frontend dinámico sin frameworks JavaScript
@@ -18,15 +19,7 @@ Esta aplicación está pensada para usarla para gestionar el almacén de un inst
 - **MQTT (Mosquitto)** - Mensajería en tiempo real desde hardware RFID
 - **ESP32 + RFID R200** - Hardware para lectura de etiquetas RFID
 
-### Principios Arquitectónicos
 
-**"Tan simple como sea posible, pero no más simple"**
-
-- **KISS + DRY + YAGNI + Navaja de Ockham**: cada nueva entidad debe justificar su existencia
-- **Prioridad al arte existente**: buscar soluciones existentes primero, luego escribir las propias
-- **Documentación = parte del código**: las decisiones arquitectónicas se registran en código y comentarios
-- **Sin optimización prematura**
-- **100% de certeza**: evaluar efectos en cascada antes de los cambios
 
 ## 🎯 Funcionalidades Principales
 
@@ -45,7 +38,7 @@ Esta aplicación está pensada para usarla para gestionar el almacén de un inst
   📱 manage.py              # CLI de gestión Django
   🧩 almacen/               # App Django principal (gestión de inventario)
   📄 core/                  # Configuración del proyecto Django
-  🔧 hardware/              # Código Arduino ESP32 para lectores RFID
+  🔧 hardware/              # Código Arduino ESP32 para lectores RFID y planos para impresi
   🛠️ templates/             # Plantillas Django con parciales HTMX
   🎨 static/                # CSS, JS, imágenes (Bootstrap)
   🧪 tests/                 # Suite de pruebas pytest para control de acceso y funcionalidad principal
@@ -56,6 +49,7 @@ Esta aplicación está pensada para usarla para gestionar el almacén de un inst
 ## 🚀 Puesta en Marcha Rápida (con uv)
 
 ### Requisitos Previos
+
 - Python 3.11+
 - uv (gestor de paquetes Python)
 - Redis Server
@@ -87,14 +81,30 @@ uv run python manage.py runserver
 ```
 
 ### Acceso a la Aplicación
+
 - **Servidor de desarrollo**: http://127.0.0.1:8000
 - **Panel de administración**: http://127.0.0.1:8000/admin
 - **Broker MQTT**: localhost:1883
 - **Caché Redis**: localhost:6379
 
+## Compilación de la aplicación del esp32 (con Arduino IDE)
+
+1. Abre con el ide de Arduino el archivo `almacen.ino` de la carpeta hardware/almacen.
+2. En el menú Herramientas -> Placas -> Gestor de Placas busca e instala "esp32 de Espressif Systems"
+3. Instala las librerías necesarias con la opción "Gestionar Bibliotecas". Las librearías están listadas en la sección siguiente.
+4. Seleciona la tarjeta "ESP32 Dev Module" en el menú Herramientas.
+5. Compila y sube el archivo a la tarjea.
+
+### Librerías necesarias
+
+* [Timezone](https://github.com/JChristensen/Timezone) (v1.2.6)
+* [NTPClient](https://github.com/arduino-libraries/NTPClient) (v3.2.1
+* [PubSubClient](https://github.com/knolleary/pubsubclient) (v2.8)
+
 ## 🔧 Configuración de Servicios Externos
 
 ### Redis (Caché para EPC RFID)
+
 ```bash
 # Instalar Redis
 sudo apt install redis-server
@@ -104,6 +114,7 @@ sudo systemctl enable redis-server
 ```
 
 ### Mosquitto (MQTT Broker)
+
 ```bash
 # Instalar Mosquitto
 sudo apt install mosquitto mosquitto-clients
@@ -113,6 +124,7 @@ sudo systemctl enable mosquitto
 ```
 
 ### Servicio MQTT Listener
+
 Crear servicio systemd para procesar mensajes MQTT:
 
 ```bash
@@ -121,6 +133,7 @@ sudo nano /etc/systemd/system/mqtt-listener.service
 ```
 
 Contenido del servicio:
+
 ```ini
 [Unit]
 Description=MQTT Listener for RFID EPC data
@@ -157,12 +170,14 @@ Los mensajes MQTT siguen este formato JSON:
 ```
 
 **Estructura de topics MQTT**:
+
 - Topic: `rfid/{aula_id}/epc`
 - Los mensajes EPC se cachean en Redis durante 30 segundos
 
 ## 🔐 Control de Acceso por Aula
 
 ### Implementación
+
 - **Modelo Persona**: incluye campo `aulas_access` (ManyToManyField) para restringir acceso a aulas
 - **Restricciones**: Usuarios no staff solo pueden acceder a productos de aulas asignadas
 - **Privilegios Staff**: Usuarios con `is_staff=True` omiten todas las restricciones de aula
@@ -170,6 +185,7 @@ Los mensajes MQTT siguen este formato JSON:
 - **Gestión Administrativa**: Interfaz PersonaAdmin para gestionar permisos de acceso a aulas
 
 ### Configuración
+
 ```bash
 # Asignar aulas a usuarios mediante Django Admin
 # 1. Ir a http://127.0.0.1:8000/admin
@@ -180,6 +196,7 @@ Los mensajes MQTT siguen este formato JSON:
 ## ✅ Verificación y Testing
 
 ### Comandos de Verificación
+
 ```bash
 # Verificación completa del proyecto
 uv run python manage.py check && uv run mypy almacen/ && uv run black --check .
@@ -195,6 +212,7 @@ mosquitto_pub -h localhost -t "rfid/3/epc" -m '{"epc": "TEST123456", "aula_id": 
 ```
 
 ### Estrategia de Testing
+
 - **Control de Acceso**: Suite pytest completa en `tests/test_access_control_simple.py`
 - Tests Django para modelos y vistas con pytest
 - Validación de formato de mensajes MQTT
@@ -205,6 +223,7 @@ mosquitto_pub -h localhost -t "rfid/3/epc" -m '{"epc": "TEST123456", "aula_id": 
 ## 🏭 Despliegue en Producción
 
 ### Configuración Previa al Despliegue
+
 ```bash
 # Cambiar modo debug
 sed -i 's/DEBUG=1/DEBUG=0/' .env
@@ -217,6 +236,7 @@ uv run python manage.py check --deploy
 ```
 
 ### Consideraciones de Seguridad
+
 - Validar todas las entradas EPC RFID
 - **Control de Acceso**: Aplicar permisos a nivel de vistas para usuarios no staff
 - Integración segura Google OAuth
@@ -250,6 +270,7 @@ uv run python manage.py collectstatic
 ## 📚 Patrones de Código
 
 ### Vista Django con HTMX y RFID EPC
+
 ```python
 @login_required
 def get_latest_epc(request):
@@ -273,6 +294,7 @@ def get_latest_epc(request):
 ```
 
 ### Patrón de Control de Acceso por Aula
+
 ```python
 @login_required
 def inventory(request):
@@ -305,12 +327,14 @@ def inventory(request):
 ## 🌟 Características Técnicas Destacadas
 
 ### Integración RFID EPC
+
 - Códigos EPC cacheados en Redis con TTL de 30 segundos
 - Estructura de topics MQTT: `rfid/{aula_id}/epc`
 - Hardware ESP32 envía JSON: `{"epc": "...", "aula_id": "3", "timestamp": "..."}`
 - Endpoints HTMX proporcionan actualizaciones EPC en tiempo real a formularios
 
 ### Arquitectura Multi-Taller
+
 - Cada producto pertenece a un `Aula` (taller/clase)
 - Usuarios tienen aula preferida mediante `Persona.last_aula`
 - Aula actual rastreada en sesión y preferencias de usuario
