@@ -14,8 +14,8 @@ void reconexion() {
 #endif
       char timestamp[32];
       obtenerFechaHora(timestamp, sizeof(timestamp));
-      char mensaje[72];
-      snprintf(mensaje, sizeof(mensaje), "%s: El %s se ha conectado", timestamp, clientId);
+      char mensaje[128];
+      snprintf(mensaje, sizeof(mensaje), "%s: El %s con ip:%s y versión %s se ha conectado", timestamp, clientId, WiFi.localIP().toString().c_str(), version_almacen);
       // sprintf(mensaje, "El %s se ha conectado", clientId);
       // Al conectarse publica un comentario al topic "sistema"
       client.publish("rfid/sistema", mensaje);

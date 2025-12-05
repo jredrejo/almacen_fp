@@ -8,6 +8,7 @@
 /*-------------------------------------------------------------------------------*/
 
 //Definición de librerías y elementos externos
+#define ELEGANTOTA_USE_ASYNC_WEBSERVER 1
 #include "credenciales.h"
 #include "opciones.h"
 #include <WiFi.h>          //Librería para la conexión a la wifi
@@ -16,6 +17,13 @@
 #include <WiFiUdp.h>
 #include <NTPClient.h>  // para ponerlo en hora a través de Internet
 #include <Timezone.h>   // para el cambio de hora
+//Librerías para hacer funcionar ElegantOTA --> Programación mediante OTA :
+#include <AsyncTCP.h>
+#include <ElegantOTA.h>
+#include <ESPAsyncWebServer.h>
+
+AsyncWebServer server(80);
+
 WiFiClient esp32Client;
 PubSubClient client(esp32Client);
 R200 rfid;
@@ -44,6 +52,21 @@ void setup() {
 
   setup_wifi();  //Configura y conecta a la WiFi
 
+  // Inicialización y manejo de OTA:
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send(200, "text/plain", "En esta IP se tiene acceso al almacen 1. Para configurar --> IP:/update");
+  });
+  server.begin();
+#ifdef DEBUG
+  Serial.println("El servidor se ha inicializado");
+#endif
+
+  ElegantOTA.begin(&server);  //Inicializa Elegant OTA
+
+
+
+
+
 #ifdef DEBUG
   Serial.println("Configuramos el segundo puerto serie: ");
 #endif
@@ -62,10 +85,10 @@ void setup() {
     rfid.loop();  // Procesamos toda la respuesta pendiente
   }
   rfid.setPower(potenciaAntena);  // La potencia dependerá del alcance deseado
-  uint8_t new_mixer_g = 2;        //2=6dB, 3=9dB.. 6=16dB
-  uint8_t new_if_g = 6;           //0=12dB,6=36dB,7=40dB
-  uint16_t new_thrd = 176;
-  //Mixer Gain, IF amplifier gain, Signal demodulation threshold
+
+  uint8_t new_mixer_g = mixerGain;
+  uint8_t new_if_g = ganacia_IF;
+  uint16_t new_thrd = demodulationThreshold;
   rfid.setDemodulatorParams(new_mixer_g, new_if_g, new_thrd);
 
 
@@ -98,6 +121,9 @@ void obtenerFechaHora(char* buffer, size_t bufferSize) {
 
 
 void loop() {
+
+  ElegantOTA.loop();
+
   //Si en algún momento se desconecta de la WiFI
   if (WiFi.status() != WL_CONNECTED) {
     setup_wifi();
@@ -152,9 +178,6 @@ void loop() {
     // en la misma o siguientes iteraciones. El buffer (isUidInBuffer) gestiona
     // la deduplicación basada en tiempo.
     memset(rfid.uid, 0, 12);
-
-
-
   }
 
 
@@ -165,6 +188,4 @@ void loop() {
     lastDebugTime = millis();
   }
 #endif
-
-
 }

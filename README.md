@@ -19,8 +19,6 @@ Esta aplicación está pensada para usarla para gestionar el almacén de un inst
 - **MQTT (Mosquitto)** - Mensajería en tiempo real desde hardware RFID
 - **ESP32 + RFID R200** - Hardware para lectura de etiquetas RFID
 
-
-
 ## 🎯 Funcionalidades Principales
 
 1. **Autenticación Google Workspace** - Login restringido al dominio santiagoapostol.net
@@ -100,6 +98,10 @@ uv run python manage.py runserver
 * [Timezone](https://github.com/JChristensen/Timezone) (v1.2.6)
 * [NTPClient](https://github.com/arduino-libraries/NTPClient) (v3.2.1
 * [PubSubClient](https://github.com/knolleary/pubsubclient) (v2.8)
+* [AsyncTCP](https://github.com/ESP32Async/AsyncTCP) (v3.4.9)
+* [ESPAsyncWebServer](https://github.com/ESP32Async/ESPAsyncWebServer) (v3.9.2)
+* [ElegantOTA](https://github.com/ayushsharma82/ElegantOTA) (v3.1.7)
+
 
 ## 🔧 Configuración de Servicios Externos
 
@@ -265,6 +267,13 @@ uv run python manage.py shell
 
 # Recopilar estáticos
 uv run python manage.py collectstatic
+
+
+# Creación del manual en pdf
+sudo apt install texlive-fonts-recommended lmodern
+pandoc "Manual de Usuario.md" -o "Manual de Usuario.pdf" --pdf-engine=xelatex --toc
+
+
 ```
 
 ## 📚 Patrones de Código

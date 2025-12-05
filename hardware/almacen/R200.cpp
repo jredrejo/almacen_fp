@@ -38,8 +38,14 @@ void printHexWord(char *name, uint8_t MSB, uint8_t LSB) {
 }
 
 void R200::loop() {
+  static unsigned long lastDataTime = 0;
+  static unsigned long lastReinitTime = 0;
+  unsigned long currentTime = millis();
+
   // Has any new data been received?
   if (dataAvailable()) {
+    lastDataTime = currentTime;
+
     // Attempt to receive a full frame of data
     if (receiveData()) {
       if (dataIsValid()) {
@@ -132,6 +138,23 @@ void R200::loop() {
         // This prevents the same frame from being processed multiple times
         memset(_buffer, 0, RX_BUFFER_LENGTH);
       }
+    }
+  } else {
+    // No data available - check if we need to reinitialize
+    // If no data for 5 seconds and last reinit was 30+ seconds ago
+    if (currentTime - lastDataTime > 5000 && currentTime - lastReinitTime > 30000) {
+#ifdef DEBUG
+      Serial.println("No data received for 5 seconds - reinitializing RFID reader");
+#endif
+      lastReinitTime = currentTime;
+
+      // Clear any accumulated data
+      flush();
+
+      // Re-enable multiple polling mode
+      setMultiplePollingMode(true);
+
+      delay(100);
     }
   }
 }
@@ -255,9 +278,9 @@ bool R200::receiveData(unsigned long timeOut) {
     if (_serial->available()) {
       uint8_t b = _serial->read();
 
-      if (bytesReceived > RX_BUFFER_LENGTH - 1) {
+      if (bytesReceived >= RX_BUFFER_LENGTH) {
         // Buffer overflow - flush everything and start over
-        Serial.print("Error: Max Buffer Length Exceeded!");
+        Serial.println("Error: Max Buffer Length Exceeded!");
         flush();
         bytesReceived = 0;
         // Clear buffer again
@@ -365,7 +388,7 @@ float R200::getPower() {
 
   _serial->write(commandFrame, 7);
 
-    // Retry 3 times logic for reliability
+  // Retry 3 times logic for reliability
   for (int attempt = 0; attempt < 3; attempt++) {
     if (receiveData(500)) {
       if (dataIsValid() && _buffer[R200_CommandPos] == CMD_AcquireTransmitPower) {
@@ -409,7 +432,7 @@ bool R200::setPower(float power) {
   for (int attempt = 0; attempt < 3; attempt++) {
     if (receiveData(500)) {
       if (dataIsValid() && _buffer[R200_CommandPos] == CMD_SetTransmitPower) {
-         // Check if response params contain [0] indicating success
+        // Check if response params contain [0] indicating success
         return (_buffer[R200_ParamPos] == 0);
       }
     }
