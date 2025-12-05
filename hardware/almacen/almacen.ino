@@ -62,10 +62,10 @@ void setup() {
     rfid.loop();  // Procesamos toda la respuesta pendiente
   }
   rfid.setPower(potenciaAntena);  // La potencia dependerá del alcance deseado
-  uint8_t new_mixer_g = 2;        //2=6dB, 3=9dB.. 6=16dB
-  uint8_t new_if_g = 6;           //0=12dB,6=36dB,7=40dB
-  uint16_t new_thrd = 176;
-  //Mixer Gain, IF amplifier gain, Signal demodulation threshold
+  
+  uint8_t new_mixer_g = mixerGain;
+  uint8_t new_if_g = ganacia_IF;
+  uint16_t new_thrd = demodulationThreshold;
   rfid.setDemodulatorParams(new_mixer_g, new_if_g, new_thrd);
 
 
