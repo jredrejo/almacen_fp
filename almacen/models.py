@@ -12,7 +12,7 @@ class Aula(models.Model):
         verbose_name_plural = "Aulas"
 
     def __str__(self):
-        return f"{self.nombre}"
+        return f"{self.nombre} - {self.id}"
 
 
 class Producto(models.Model):

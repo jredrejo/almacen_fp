@@ -4,7 +4,7 @@ from .models import Aula, Producto, Ubicacion, Prestamo, Persona
 
 @admin.register(Aula)
 class AulaAdmin(admin.ModelAdmin):
-    list_display = ("nombre",)
+    list_display = ("id","nombre")
     search_fields = ("nombre",)
 
 
