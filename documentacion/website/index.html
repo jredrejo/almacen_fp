@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Almacén Inteligente - Sistema RFID para Gestión de Inventario</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="header">
+        <nav class="nav">
+            <h1 class="nav-logo">Almacén Inteligente</h1>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="#inicio" class="nav-link">Inicio</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#objetivo" class="nav-link">Objetivo</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#desarrollo" class="nav-link">Desarrollo</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#resultados" class="nav-link">Resultados</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#documentacion" class="nav-link">Documentación</a>
+                </li>
+            </ul>
+            <div class="nav-toggle">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Sección Inicio -->
+        <section id="inicio" class="section section-inicio">
+            <div class="container">
+                <div class="hero">
+                    <h1>Almacén Inteligente con Control de Inventario mediante RFID</h1>
+                    <p class="hero-subtitle">Sistema automatizado para la gestión de inventarios en aulas de Formación Profesional</p>
+                    <img src="img/imagenrfid.jpeg" alt="Tecnología RFID" class="hero-image">
+                </div>
+                <div class="hero-logo">
+                    <img src="img/logos.png" alt="Logos del proyecto" class="logos-image">
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección Objetivo -->
+        <section id="objetivo" class="section section-objetivo">
+            <div class="container">
+                <h2>Objetivo del Proyecto</h2>
+                <div class="objetivo-grid">
+                    <div class="objetivo-card">
+                        <h3>Digitalización y Control del Inventario</h3>
+                        <p>Implementar un sistema automatizado basado en tecnología RFID que permita el registro en tiempo real del inventario del aula, optimizando la gestión de los recursos y garantizando la trazabilidad de cada movimiento.</p>
+                    </div>
+                    <div class="objetivo-card">
+                        <h3>Mejora en la Gestión de Recursos</h3>
+                        <p>Facilitar el acceso a la información a través de una interfaz web, permitiendo conocer quién ha retirado el material y en qué momento, reduciendo errores y pérdidas.</p>
+                    </div>
+                    <div class="objetivo-card">
+                        <h3> Eficiencia y Sostenibilidad</h3>
+                        <p>Reducir el tiempo dedicado al control manual del inventario y fomentar prácticas sostenibles en la gestión de los recursos, en línea con los Objetivos de Desarrollo Sostenible (ODS 9 y ODS 12).</p>
+                    </div>
+                    <div class="objetivo-card">
+                        <h3>Innovación Educativa</h3>
+                        <p>Contribuir a la digitalización del centro, fomentando el uso de tecnologías emergentes y promoviendo la colaboración entre el centro educativo y empresas del sector.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección Desarrollo -->
+        <section id="desarrollo" class="section section-desarrollo">
+            <div class="container">
+                <h2>Desarrollo del Proyecto</h2>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-content">
+                            <h3>Fase 1: Diagnóstico y Planificación</h3>
+                            <p><strong>Duración:</strong> 1 mes</p>
+                            <ul>
+                                <li>Revisión del proceso actual de gestión del inventario</li>
+                                <li>Reuniones con el equipo de gestión y empresa colaboradora</li>
+                                <li>Identificación de problemas y necesidades</li>
+                                <li>Elaboración de informe diagnóstico y especificaciones técnicas</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-content">
+                            <h3>Fase 2: Instalación y Configuración del Sistema RFID</h3>
+                            <p><strong>Duración:</strong> 1 mes</p>
+                            <ul>
+                                <li>Selección y adquisición de dispositivos RFID y Raspberry Pi</li>
+                                <li>Instalación física de etiquetas en equipos y herramientas</li>
+                                <li>Montaje del lector en lugar estratégico del aula</li>
+                                <li>Configuración del servidor en Raspberry Pi</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-content">
+                            <h3>Fase 3: Implementación y Pruebas del Sistema</h3>
+                            <p><strong>Duración:</strong> 2.5 meses</p>
+                            <ul>
+                                <li>Desarrollo de aplicación web con Django</li>
+                                <li>Integración del software con el lector RFID</li>
+                                <li>Implementación de autenticación de usuarios</li>
+                                <li>Pruebas de comunicación entre dispositivos</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-content">
+                            <h3>Fase 4: Integración de Procedimientos y Protocolos de Uso</h3>
+                            <p><strong>Duración:</strong> 1 mes</p>
+                            <ul>
+                                <li>Definición de protocolos operativos para el uso diario</li>
+                                <li>Elaboración de manuales de uso y protocolos de operación</li>
+                                <li>Realización de sesiones piloto para validación</li>
+                                <li>Ajuste de parámetros según resultados</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-content">
+                            <h3>Fase 5: Capacitación y Formación</h3>
+                            <p><strong>Duración:</strong> 1 mes</p>
+                            <ul>
+                                <li>Organización de talleres y sesiones de formación</li>
+                                <li>Desarrollo de materiales formativos (tutoriales, manuales, videos)</li>
+                                <li>Formación práctica para profesorado y personal</li>
+                                <li>Capacitación en tecnología RFID y gestión del sistema</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-content">
+                            <h3>Fase 6: Pruebas, Evaluación y Puesta en Marcha</h3>
+                            <p><strong>Duración:</strong> 1 mes</p>
+                            <ul>
+                                <li>Recolección de feedback de usuarios</li>
+                                <li>Ajustes finales y despliegue oficial</li>
+                                <li>Evaluación del impacto en la gestión del inventario</li>
+                                <li>Difusión de resultados y creación de guía replicable</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="gallery-section">
+                    <h3>Galería del Proyecto</h3>
+                    <div class="gallery-grid">
+                        <div class="gallery-item">
+                            <img src="fotos/SAVE_20251203_120009.jpg" alt="Foto 2">
+                            <p class="gallery-caption">Conexionado del lector RFID hecho por los alumnos</p>
+                        </div>
+                        <div class="gallery-item">
+                            <img src="fotos/IMG_20251208_102642.jpg" alt="Foto 3">
+                            <p class="gallery-caption">Conexionado completo del lector RFID</p>
+                        </div>
+                        <div class="gallery-item">
+                            <img src="fotos/whatsapp1.jpeg" alt="Foto 4">
+                            <p class="gallery-caption">Alumnos preparando la nueva instalación eléctrica para el receptor</p>
+                        </div>
+                        <div class="gallery-item">
+                            <img src="fotos/whatsapp2.jpeg" alt="Foto 5">
+                            <p class="gallery-caption">Alumnos preparando la nueva instalación eléctrica en distintas aulas</p>
+                        </div>
+                        <div class="gallery-item">
+                            <img src="fotos/IMG_20251205_110925.jpg" alt="Foto 1">
+                            <p class="gallery-caption">Alumnos de FP de Grado Medio haciendo la instalación eléctrica en un aula</p>
+                        </div>
+                        <div class="gallery-item">
+                            <img src="fotos/IMG_20251205_110339.jpg" alt="Foto 6">
+                            <p class="gallery-caption">Alumnos montando la pantalla</p>
+                        </div>
+                        <div class="gallery-item">
+                            <img src="fotos/whatsapp3.jpeg" alt="Foto 7">
+                            <p class="gallery-caption">Alumnos de FP de Grado Medio haciendo la instalación eléctrica en un aula</p>
+                        </div>
+                        <div class="gallery-item">
+                            <img src="fotos/IMG_20251205_111207.jpg" alt="Foto 8">
+                            <p class="gallery-caption">Título placeholder 8</p>
+                        </div>
+                        <div class="gallery-item">
+                            <img src="fotos/IMG_20251205_110703.jpg" alt="Foto 9">
+                            <p class="gallery-caption">Alumnos montando la pantalla</p>
+                        </div>
+                        <div class="gallery-item">
+                            <img src="fotos/IMG_20251205_111211.jpg" alt="Foto 10">
+                            <p class="gallery-caption">Alumnos montando el receptor en un aula</p>
+                        </div>
+                        <div class="gallery-item">
+                            <img src="fotos/IMG_20251205_111330.jpg" alt="Foto 11">
+                            <p class="gallery-caption">Montaje del sistema en el primer aula</p>
+                        </div>
+                        <div class="gallery-item">
+                            <img src="fotos/IMG_20251205_112539.jpg" alt="Foto 12">
+                            <p class="gallery-caption">Instalación para pruebas en el primer aula</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección Resultados -->
+        <section id="resultados" class="section section-resultados">
+            <div class="container">
+                <h2>Resultados Obtenidos</h2>
+                <div class="resultados-grid">
+                    <!-- <div class="resultado-item">
+                        <h3>✅ Sistema Operativo y Validado</h3>
+                        <p>Implementación exitosa de un sistema de control de inventario funcional y probado en el aula de Formación Profesional.</p>
+                    </div> -->
+                    <div class="resultado-item">
+                        <h3>🔄 Registro Automatizado</h3>
+                        <p>Registro en tiempo real de la entrada y salida de material del almacén sin necesidad de intervención manual.</p>
+                    </div>
+                    <div class="resultado-item">
+                        <h3>🌐 Acceso Web Seguro</h3>
+                        <p>Interfaz web accesible para consulta de inventario y registro con identificación de usuario responsable.</p>
+                    </div>
+                    <div class="resultado-item">
+                        <h3>⏱️ Optimización del Tiempo</h3>
+                        <p>Reducción significativa del tiempo dedicado a la gestión manual del inventario.</p>
+                    </div>
+                    <div class="resultado-item">
+                        <h3>🎯 Reducción de Errores</h3>
+                        <p>Disminución considerable de errores en el registro y optimización de la reposición de materiales.</p>
+                    </div>
+                    <div class="resultado-item">
+                        <h3>📚 Modelo Replicable</h3>
+                        <p>Creación de una guía y documentación para facilitar la replicación del sistema en otros centros educativos.</p>
+                    </div>
+                    <div class="resultado-item">
+                        <h3>👥 Formación y Capacitación</h3>
+                        <p>Capacitación del profesorado y alumnado en el uso de tecnología RFID, impulsando la innovación educativa.</p>
+                    </div>
+                    <!-- <div class="resultado-item">
+                        <h3>🤈 Colaboración Empresarial</h3>
+                        <p>Transferencia de conocimiento con la empresa colaboradora en la conexión de sistemas independientes.</p>
+                    </div> -->
+                </div>
+
+                <!-- <div class="metrics-section">
+                    <h3>Métricas de Éxito</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <span class="metric-number">95%</span>
+                            <p class="metric-label">Precisión en el registro de inventario</p>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-number">80%</span>
+                            <p class="metric-label">Reducción del tiempo de gestión</p>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-number">100%</span>
+                            <p class="metric-label">Trazabilidad de movimientos</p>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-number">90%</span>
+                            <p class="metric-label">Satisfacción de usuarios</p>
+                        </div>
+                    </div>
+                </div> -->
+            </div>
+        </section>
+
+        <!-- Sección Documentación -->
+        <section id="documentacion" class="section section-documentacion">
+            <div class="container">
+                <h2>Documentación de Apoyo</h2>
+                <div class="doc-grid">
+                    <div class="doc-card">
+                        <h3>📖 Manual de Usuario</h3>
+                        <p>Guía completa para el uso del sistema Almacén FP por parte de docentes y alumnos.</p>
+                        <a href="https://github.com/jredrejo/almacen_fp/blob/main/documentacion/Manual%20de%20Usuario.pdf" class="doc-link">Ver Manual</a>
+                    </div>
+                    <div class="doc-card">
+                        <h3>📄 Planos para imprimir en 3D las carcasas de pantalla y receptores</h3>
+                        <p>Archivos 3mf</p>
+                        <a href="https://github.com/jredrejo/almacen_fp/tree/main/hardware/archivos_impresora_3D" class="doc-link">Ver carpeta</a>
+                    </div>
+                    <div class="doc-card">
+                        <h3>🔧 Documentación Técnica</h3>
+                        <p>Código fuente, esquemas electrónicos y documentación técnica del hardware y software.</p>
+                        <ul class="doc-list">
+                            <li><a href="https://github.com/jredrejo/almacen_fp/">Repositorio GitHub</a></li>
+                        </ul>
+                    </div>
+                    <div class="doc-card">
+                        <h3>📊 Evaluación y Resultados</h3>
+                        <p>Informes de evaluación, encuestas de satisfacción y análisis de resultados del proyecto.</p>
+                        <a href="#" class="doc-link">Ver Informes</a>
+                    </div>
+                    <div class="doc-card">
+                        <h3>🎓 Materiales Didácticos</h3>
+                        <p>Presentaciones, tutoriales y recursos educativos para la implementación del sistema.</p>
+                        <a href="#" class="doc-link">Acceder a Recursos</a></li>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024-2025 Proyecto de Innovación aplicada y transferencia de conocimiento - I.E.S. Santiago Apóstol, Almendralejo - I.E.S. Extremadura, Montijo</p>
+            <img src="img/logos.png" alt="Logos del proyecto" class="footer-logo">
+        </div>
+    </footer>
+
+    <!-- Modal for full-size images -->
+    <div id="imageModal" class="modal">
+        <span class="modal-close">&times;</span>
+        <img class="modal-content" id="modalImage" alt="Imagen en tamaño completo">
+        <div id="modalCaption" class="modal-caption"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
