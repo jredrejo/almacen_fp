@@ -10,7 +10,7 @@ subtitle: Sistema de Almacén Inteligente con Control de Inventario mediante RFI
 
 ### 1.1 ¿Qué es el Sistema de Almacén Inteligente? {#que-es-el-sistema}
 
-El Sistema de Almacén Inteligente es una aplicación web desarrollada para la gestión automatizada del inventario en aulas de Formación Profesional del I.E.S. Santiago Apóstol. Utiliza tecnología RFID (Identificación por Radiofrecuencia) para realizar un seguimiento en tiempo real de los materiales, herramientas y componentes del aula.
+El Sistema de Almacén Inteligente es una aplicación web desarrollada para la gestión automatizada del inventario en aulas de Formación Profesional del I.E.S. Santiago Apóstol (Almendralejo) y del I.E.S. Extremadura (Montijo). Utiliza tecnología RFID (Identificación por Radiofrecuencia) para realizar un seguimiento en tiempo real de los materiales, herramientas y componentes del aula.
 
 ### 1.2 Objetivos del Sistema
 
@@ -29,7 +29,45 @@ El sistema se basa en:
 - **Lectores RFID** instalados estratégicamente en el aula
 - **Servidor basado en Raspberry Pi** que ejecuta la aplicación Django
 - **Aplicación web responsive** accesible desde ordenadores, tablets y móviles
-- **Integración con Google Workspace** la autenticación segura se realiza usando cuentas del centro educativo
+- **Integración con Google Workspace** para una autenticación segura realizada usando cuentas de correo del centro educativo
+
+
+### 1.4 Uso de RFID
+
+#### ¿Qué es RFID?
+
+RFID (Radio Frequency Identification) es una tecnología que permite identificar objetos mediante ondas de radio. Cada producto tiene una etiqueta con un código único (EPC) que es leído por dispositivos especializados. En nuestro proyecto usamos lectores y pegatinas UHF que permiten la lectura simultánea de varias etiquetas en un solo escaneo.
+
+#### Lectores RFID
+
+El sistema utiliza lectores que:
+
+- Se instalan en las entradas/salidas de los talleres
+- Detectan automáticamente las etiquetas RFID
+- Envían la información al sistema en tiempo real
+- Tienen un alcance de hasta 3 metros
+
+Los productos llevan adheridas pegatinas con un código único (EPC) que es leído por los lectores RFID. En este proyecto contamos con tres tipos de pegatinas:
+
+- Pegatinas medianas de 75x25 mm
+- Pegatinas pequeñas de 25x15 mm
+- Pegatinas redondas pequeñas de 15 mm de radio
+
+A mayor tamaño, más alcance de lectura por parte de los lectores.
+
+#### Flujo de Trabajo con RFID
+
+1. **Escaneo**: Pasa el producto cerca del lector
+2. **Detección**: El sistema lee automáticamente el código EPC
+3. **Registro**: La información se actualiza en tiempo real
+4. **Confirmación**: Visual/auditiva de la detección
+
+#### Ventajas del Uso de RFID
+
+- **Automatización**: No requiere intervención manual
+- **Precisión**: Elimina errores humanos en el registro
+- **Velocidad**: Lectura instantánea de múltiples productos
+- **Durabilidad**: Las etiquetas resisten condiciones industriales
 
 ---
 
@@ -58,13 +96,36 @@ El sistema utiliza autenticación mediante Google Workspace del centro educativo
 
 ### 2.3 Tipos de Usuario
 
-El sistema distingue tres tipos de usuarios:
+#### Estudiante
 
-| Tipo de Usuario             | Permisos      | Funciones                                                                                                                            |
-|:---------------------------:|:-------------:|:------------------------------------------------------------------------------------------------------------------------------------:|
-| **Alumno**                  | Básico        | Ver inventario, tomar/devolver productos de sus aulas asignadas                                                                      |
-| **Profesor**                | Estándar      | Ver inventario, tomar/devolver productos, gestionar su aula. Crear/editar/eliminar productos, gestionar aulas, asignar llaveros RFID |
-| **Administrador del sitio** | Administrador | Todas las anteriores y además asigna los permisos a los profesores.                                                                  |
+- Puede tomar y devolver productos
+- Solo ve productos de sus aulas autorizadas
+- No puede administrar el sistema
+
+#### Profesor
+
+- Todas las funciones de estudiante
+- Puede ver el inventario completo de sus aulas
+- Puede gestionar préstamos de sus estudiantes
+- Puede añadir/editar productos (si está autorizado)
+- Gestión completa del inventario
+- Acceso a reportes y estadísticas
+
+#### Administrador
+
+- Control total del sistema
+- Administración de aulas
+- Gestión de usuarios y permisos
+- Configuración del sistema
+- Mantenimiento de datos
+
+### 2.4 Control de Acceso por Aulas
+
+- Cada usuario puede tener acceso a aulas específicas
+- El sistema filtra automáticamente el contenido visible
+- Los usuarios con rol `Administrador` ven todas las aulas
+- Los usuarios sin aulas asignadas tienen acceso como estudiante a todas las aulas
+
 
 ---
 
@@ -292,6 +353,7 @@ Solo los profesores del grupo "ProfesoresFP" pueden añadir productos:
 > **Advertencia**: Esta acción no se puede deshacer. Se eliminará el producto y todo su historial de préstamos.
 
 ### 7.4 Gestionar Aulas {#gestionar-aulas}
+*(Solo personal tipo Administrador)*
 
 ![](manual/add_aula.png)
 
@@ -373,6 +435,8 @@ Todas las funciones están disponibles en móvil:
 
 **P: No encuentro un producto en el inventario** R: Usa la barra de búsqueda. Si aún no lo encuentras, puede que esté registrado en otra aula o que no haya sido añadido al sistema.
 
+**P: ¿Qué hago si el lector RFID no detecta una etiqueta?** R: Verifica que la etiqueta esté bien adherida al producto. Asegúrate de que el producto esté dentro del alcance del lector. Intenta acercar más el producto al lector.
+
 ### 9.3 Lector RFID {#lector-rfid-faq}
 
 **P: ¿A qué distancia funciona el lector RFID?** R: Los lectores UHF suelen funcionar entre 1 y 5 metros, dependiendo del modelo y la potencia configurada.
@@ -380,6 +444,8 @@ Todas las funciones están disponibles en móvil:
 **P: ¿Qué hago si mi tarjeta personal no se detecta?** R: Contacta con un profesor del grupo ProfesoresFP para que te asigne una nueva tarjeta.
 
 **P: ¿Puedo usar mi móvil como tarjeta RFID?** R: No, el sistema usa tecnología RFID UHF pasiva que no es compatible con los móviles (que usan NFC).
+
+**P: ¿Qué significa el campo EPC?** R: EPC (Electronic Product Code) es el identificador único de cada etiqueta RFID. Es como un "código de barras" invisible que identifica cada producto de forma única en el sistema.
 
 ### 9.4 Permisos y Aulas {#permisos-y-aulas}
 

@@ -247,6 +247,143 @@ uv run python manage.py check --deploy
 - Restringir topics MQTT con ACLs
 - **Omisión de Restricciones**: Usuarios staff (`is_staff=True`) omiten todas las restricciones de aula
 
+### Autenticación sin Google Workspace
+
+Para configurar el sistema con autenticación estándar de Django en lugar de Google Workspace OAuth, sigue estos pasos:
+
+#### 1. Configurar settings.py
+
+```python
+
+# Configurar autenticación estándar de Django
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
+```
+
+#### 2. Modificar los templates de autenticación
+Modifica el archivo  `templates/account/login.html`:
+
+Reemplaza la sección:
+```html
+                    {% get_providers as providers %}
+                    {% if providers %}
+                        {% for p in providers %}
+                            {% if p.id == 'google' %}
+                                <p class="text-muted">
+                                    Usa tu cuenta de correo electrónico de
+                                    <strong>santiagoapostol.net</strong>.
+                                </p>
+                                <a
+                                    class="btn btn-outline-dark w-100"
+                                    href="{% provider_login_url 'google' %}"
+                                    hx-boost="false"
+                                    data-turbo="false"
+                                >
+                                    <img
+                                        alt=""
+                                        src="{% static 'img/google.svg' %}"
+                                        width="20"
+                                        class="me-2"
+                                    />
+                                    Entrar con el correo del instituto
+                                </a>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+
+```
+
+
+por:
+```html
+           <form method="post" class="login-form">
+                        {% csrf_token %}
+
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.email.id_for_label }}">
+                                <i class="fas fa-user me-1"></i>
+                                Para usuarios que no tengan cuenta del IES Santiago Apóstol:
+                            </label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-user input-icon"></i>
+                                <input
+                                    type="email"
+                                    name="{{ form.login.name }}"
+                                    class="form-control ps-5"
+                                    id="{{ form.login.id_for_label }}"
+                                    placeholder="Correo electrónico"
+                                    required
+                                    autofocus
+                                >
+                            </div>
+                            {% if form.username.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.username.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label" for="{{ form.password.id_for_label }}">
+                                <i class="fas fa-lock me-1"></i>
+                                Contraseña
+                            </label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-lock input-icon"></i>
+                                <input
+                                    type="password"
+                                    name="{{ form.password.name }}"
+                                    class="form-control ps-5"
+                                    id="{{ form.password.id_for_label }}"
+                                    placeholder="Ingresa tu contraseña"
+                                    required
+                                >
+                            </div>
+                            {% if form.password.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.password.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-login">
+                                <i class="fas fa-sign-in-alt me-2"></i>
+                                Iniciar Sesión
+                            </button>
+                        </div>
+
+                        {% if next %}
+                            <input type="hidden" name="next" value="{{ next }}">
+                        {% endif %}
+                    </form>
+
+
+
+
+                <!-- Footer Links -->
+                    <div class="login-footer">
+                        <a href="{% url 'account_reset_password' %}" class="text-decoration-none">
+                            <i class="fas fa-question-circle me-1"></i>
+                            ¿Olvidaste tu contraseña?
+                        </a>
+                    </div>
+                </div>
+
+```
+#### 3. Probar la configuración
+
+1. Inicia el servidor de desarrollo
+2. Accede a `http://127.0.0.1:8000/accounts/login/`
+3. Inicia sesión con las credenciales de un usuario creado
+4. Verifica que el acceso al sistema funciona correctamente
+
 ## 🛠️ Comandos de Desarrollo Adicionales
 
 ```bash
