@@ -5,7 +5,19 @@ User = get_user_model()
 
 
 class Aula(models.Model):
+    OPERATION_MODE_CHOICES = [
+        ("WITH_PERSONA", "Con identificación de persona"),
+        ("WITHOUT_PERSONA", "Sin identificación de persona"),
+    ]
+
     nombre = models.CharField(max_length=100, unique=True)
+    operation_mode = models.CharField(
+        "Modo de operación",
+        max_length=20,
+        choices=OPERATION_MODE_CHOICES,
+        default="WITH_PERSONA",
+        help_text="Modo de operación para esta aula: WITH_PERSONA requiere identificar persona para préstamos, WITHOUT_PERSONA permite préstamos sin identificación.",
+    )
 
     class Meta:
         verbose_name = "Aula"

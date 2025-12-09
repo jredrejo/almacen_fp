@@ -13,31 +13,39 @@ from django.utils import timezone
 
 from almacen.models import Aula, Persona, Prestamo, Producto
 
-# Obtener un logger con el nombre del módulo/comando
-logger = logging.getLogger(__name__)
+# --- Configuración del Broker ---
+MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
+MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
+MQTT_USER = os.getenv("MQTT_USER", "")
+MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", "")
+MQTT_TOPIC = "rfid/#"
+MQTT_TOPIC_READINGS = "rfid/lectura"
+
+# --- Configuración de Batch ---
+BATCH_TIME_SECONDS = int(os.getenv("BATCH_TIME_SECONDS", 5))
+
+# --- Configuración de Redis/Caché ---
+CACHE_TIMEOUT_SECONDS = int(os.getenv("CACHE_TIMEOUT_SECONDS", 35))
+CACHE_KEY_FORMAT = "last_epc:{}"
+
+try:
+    epc_cache = caches["epc_cache"]
+except KeyError:
+    epc_cache = caches["default"]
 
 
 # Configurar logging con rotación
 def setup_logging():
     """Configura logging con rotación de archivos. Funciona en Linux y Windows."""
-    import platform
-    import sys
 
-    # Determinar la ruta del archivo de log según el sistema operativo
-    if platform.system() == "Windows":
-        # En Windows, usar el directorio actual o un directorio 'logs'
+    # En Linux/Unix, intentar usar /var/log
+    if os.path.exists("/var/log") and os.access("/var/log", os.W_OK):
+        log_file = "/var/log/mqtt-listener.log"
+    else:
+        # Fallback: usar el directorio actual
         log_dir = os.path.join(os.getcwd(), "logs")
         log_file = os.path.join(log_dir, "mqtt-listener.log")
-    else:
-        # En Linux/Unix, intentar usar /var/log, si no, usar el directorio actual
-        if os.path.exists("/var/log") and os.access("/var/log", os.W_OK):
-            log_file = "/var/log/mqtt-listener.log"
-        else:
-            # Fallback: usar el directorio actual
-            log_dir = os.path.join(os.getcwd(), "logs")
-            log_file = os.path.join(log_dir, "mqtt-listener.log")
 
-    # Crear el directorio si no existe
     if "log_dir" in locals():
         os.makedirs(log_dir, exist_ok=True)
     else:
@@ -69,36 +77,11 @@ def setup_logging():
 
     # Mostrar información sobre dónde se están guardando los logs
     logger.info(f"Logging configured. Log file: {log_file}")
-    if platform.system() == "Windows":
-        logger.info("Running on Windows - using local log file")
-    else:
-        logger.info("Running on Linux/Unix - using system log location")
 
     return logger
 
 
 logger = setup_logging()
-
-# --- Configuración del Broker ---
-MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
-MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
-MQTT_USER = os.getenv("MQTT_USER", "")
-MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", "")
-MQTT_TOPIC = "rfid/#"
-MQTT_TOPIC_READINGS = "rfid/lectura"
-
-# --- Configuración de Batch ---
-BATCH_TIME_SECONDS = int(os.getenv("BATCH_TIME_SECONDS", 3))
-OPERATION_MODE = os.getenv("OPERATION_MODE", "WITH_PERSONA")
-
-# --- Configuración de Redis/Caché ---
-CACHE_TIMEOUT_SECONDS = int(os.getenv("CACHE_TIMEOUT_SECONDS", 35))
-CACHE_KEY_FORMAT = "last_epc:{}"
-
-try:
-    epc_cache = caches["epc_cache"]
-except KeyError:
-    epc_cache = caches["default"]
 
 
 class BatchProcessor:
@@ -187,18 +170,26 @@ class BatchProcessor:
         # Separar EPCs de productos
         producto_epcs = [epc for epc in epcs if epc != persona_epc]
 
+        # Obtener el modo de operación del aula
+        try:
+            aula = Aula.objects.get(pk=aula_id)
+            operation_mode = aula.operation_mode
+        except Aula.DoesNotExist:
+            logger.error(f"Aula con ID {aula_id} no encontrada en la BD")
+            return
+
         # Validar que hay una persona si hay productos (solo en modo WITH_PERSONA)
-        if producto_epcs and not persona and OPERATION_MODE == "WITH_PERSONA":
+        if producto_epcs and not persona and operation_mode == "WITH_PERSONA":
             logger.error(
-                f"Batch en Aula {aula_id} contiene {len(producto_epcs)} productos "
+                f"Batch en Aula {aula_id} ({aula.nombre}) contiene {len(producto_epcs)} productos "
                 f"pero NO se detectó ninguna Persona. EPCs: {producto_epcs}"
             )
             return
 
         # En modo WITHOUT_PERSONA, advertir si hay productos sin persona pero continuar
-        if producto_epcs and not persona and OPERATION_MODE != "WITH_PERSONA":
+        if producto_epcs and not persona and operation_mode == "WITHOUT_PERSONA":
             logger.warning(
-                f"Batch en Aula {aula_id} contiene {len(producto_epcs)} productos "
+                f"Batch en Aula {aula_id} ({aula.nombre}) contiene {len(producto_epcs)} productos "
                 f"sin Persona detectada. Procesando en modo WITHOUT_PERSONA."
             )
 
