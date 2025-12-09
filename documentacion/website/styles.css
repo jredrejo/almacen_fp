@@ -371,10 +371,44 @@ body {
     font-weight: bold;
     cursor: pointer;
     transition: color 0.3s ease;
+    z-index: 2001;
 }
 
 .modal-close:hover {
     color: #3498db;
+}
+
+.modal-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #fff;
+    font-size: 60px;
+    font-weight: bold;
+    cursor: pointer;
+    background-color: rgba(0, 0, 0, 0.5);
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    z-index: 2001;
+    user-select: none;
+}
+
+.modal-nav:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+    color: #3498db;
+}
+
+.modal-prev {
+    left: 30px;
+}
+
+.modal-next {
+    right: 30px;
 }
 
 /* Responsive adjustments for modal */
@@ -393,6 +427,20 @@ body {
         top: 15px;
         right: 25px;
         font-size: 40px;
+    }
+
+    .modal-nav {
+        width: 40px;
+        height: 40px;
+        font-size: 30px;
+    }
+
+    .modal-prev {
+        left: 15px;
+    }
+
+    .modal-next {
+        right: 15px;
     }
 }
 

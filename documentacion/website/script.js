@@ -171,16 +171,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalImg = document.getElementById('modalImage');
     const modalCaption = document.getElementById('modalCaption');
     const closeModal = document.querySelector('.modal-close');
+    const modalPrev = document.querySelector('.modal-prev');
+    const modalNext = document.querySelector('.modal-next');
 
     // Get all gallery images
     const galleryImages = document.querySelectorAll('.gallery-item img');
+    let currentImageIndex = 0;
 
     // Add click event to each gallery image
-    galleryImages.forEach(img => {
+    galleryImages.forEach((img, index) => {
         img.style.cursor = 'pointer'; // Add pointer cursor to indicate clickable
         img.addEventListener('click', function() {
             modal.style.display = 'block';
             modalImg.src = this.src;
+            currentImageIndex = index;
 
             // Get the caption from the gallery caption
             const caption = this.parentElement.querySelector('.gallery-caption');
@@ -195,6 +199,62 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Navigation functions
+    function showImage(index) {
+        if (index >= 0 && index < galleryImages.length) {
+            currentImageIndex = index;
+            modalImg.src = galleryImages[index].src;
+            
+            // Update caption
+            const caption = galleryImages[index].parentElement.querySelector('.gallery-caption');
+            if (caption) {
+                modalCaption.textContent = caption.textContent;
+            } else {
+                modalCaption.textContent = '';
+            }
+        }
+    }
+
+    function showNextImage() {
+        let nextIndex = currentImageIndex + 1;
+        if (nextIndex >= galleryImages.length) {
+            nextIndex = 0; // Loop back to first image
+        }
+        showImage(nextIndex);
+    }
+
+    function showPrevImage() {
+        let prevIndex = currentImageIndex - 1;
+        if (prevIndex < 0) {
+            prevIndex = galleryImages.length - 1; // Loop to last image
+        }
+        showImage(prevIndex);
+    }
+
+    // Event listeners for navigation
+    modalNext.addEventListener('click', function(e) {
+        e.stopPropagation(); // Prevent modal from closing
+        showNextImage();
+    });
+
+    modalPrev.addEventListener('click', function(e) {
+        e.stopPropagation(); // Prevent modal from closing
+        showPrevImage();
+    });
+
+    // Keyboard navigation
+    document.addEventListener('keydown', function(e) {
+        if (modal.style.display === 'block') {
+            if (e.key === 'Escape') {
+                closeModalFunc();
+            } else if (e.key === 'ArrowRight') {
+                showNextImage();
+            } else if (e.key === 'ArrowLeft') {
+                showPrevImage();
+            }
+        }
+    });
+
     // Close modal when clicking the X
     closeModal.addEventListener('click', function() {
         closeModalFunc();
@@ -203,13 +263,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Close modal when clicking outside the image
     modal.addEventListener('click', function(e) {
         if (e.target === modal) {
-            closeModalFunc();
-        }
-    });
-
-    // Close modal with Escape key
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && modal.style.display === 'block') {
             closeModalFunc();
         }
     });
