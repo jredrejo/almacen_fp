@@ -14,9 +14,9 @@ ExecStart=/opt/almacen_fp/.venv/bin/python manage.py mqtt_listener
 Restart=always
 RestartSec=10
 
-# Logs
-StandardOutput=journal
-StandardError=journal
+# Logs - Mantener logs en journalctl y también en archivo
+StandardOutput=journal+console
+StandardError=journal+console
 SyslogIdentifier=mqtt-listener
 
 [Install]

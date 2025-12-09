@@ -3,6 +3,7 @@ import logging
 import os
 from collections import defaultdict
 from datetime import datetime, timedelta
+from logging.handlers import RotatingFileHandler
 
 import paho.mqtt.client as mqtt
 from django.core.cache import caches
@@ -14,7 +15,69 @@ from almacen.models import Aula, Persona, Prestamo, Producto
 
 # Obtener un logger con el nombre del módulo/comando
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+
+
+# Configurar logging con rotación
+def setup_logging():
+    """Configura logging con rotación de archivos. Funciona en Linux y Windows."""
+    import platform
+    import sys
+
+    # Determinar la ruta del archivo de log según el sistema operativo
+    if platform.system() == "Windows":
+        # En Windows, usar el directorio actual o un directorio 'logs'
+        log_dir = os.path.join(os.getcwd(), "logs")
+        log_file = os.path.join(log_dir, "mqtt-listener.log")
+    else:
+        # En Linux/Unix, intentar usar /var/log, si no, usar el directorio actual
+        if os.path.exists("/var/log") and os.access("/var/log", os.W_OK):
+            log_file = "/var/log/mqtt-listener.log"
+        else:
+            # Fallback: usar el directorio actual
+            log_dir = os.path.join(os.getcwd(), "logs")
+            log_file = os.path.join(log_dir, "mqtt-listener.log")
+
+    # Crear el directorio si no existe
+    if "log_dir" in locals():
+        os.makedirs(log_dir, exist_ok=True)
+    else:
+        # Para /var/log, el directorio ya debería existir
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+
+    # Configurar handler con rotación
+    handler = RotatingFileHandler(
+        log_file,
+        maxBytes=5 * 1024 * 1024,  # 5 MB por archivo
+        backupCount=5,  # Mantener 5 archivos de backup
+        encoding="utf-8",
+    )
+
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    handler.setFormatter(formatter)
+
+    # Configurar el logger
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    logger.addHandler(handler)
+
+    # También configurar el logger raíz para capturar todo
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    root_logger.addHandler(handler)
+
+    # Mostrar información sobre dónde se están guardando los logs
+    logger.info(f"Logging configured. Log file: {log_file}")
+    if platform.system() == "Windows":
+        logger.info("Running on Windows - using local log file")
+    else:
+        logger.info("Running on Linux/Unix - using system log location")
+
+    return logger
+
+
+logger = setup_logging()
 
 # --- Configuración del Broker ---
 MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
