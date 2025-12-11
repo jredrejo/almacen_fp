@@ -1,0 +1,17 @@
+# ============================================
+# CONFIGURACIÓN DE LA PANTALLA M5STACK TAB5
+# Ajustar según el entorno
+# ============================================
+
+# Configuración WiFi
+WIFI_SSID = "tu_essid"
+WIFI_PASSWORD = "tu_password_wifi"
+
+# Configuración MQTT
+MQTT_BROKER = "192.168.0.1"  # IP del broker MQTT
+MQTT_PORT = 1883
+MQTT_USER = "nombre_usuario_mqtt"
+MQTT_PASSWORD = "password_usuario_mqtt"
+# ID único de esta pantalla (usado para el topic MQTT)
+# Topic resultante: rfid/pantalla/{PANTALLA_ID}
+PANTALLA_ID = "1"
