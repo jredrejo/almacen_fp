@@ -28,6 +28,7 @@ urlpatterns = [
     path(
         "password_reset/", auth_views.PasswordResetView.as_view(), name="password_reset"
     ),
+    path("api/", include("almacen.api_urls")),
     path("", RedirectView.as_view(pattern_name="almacen:dashboard", permanent=False)),
     path("almacen/", include("almacen.urls", namespace="almacen")),
 ]
