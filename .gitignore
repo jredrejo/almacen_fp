@@ -181,3 +181,6 @@ hardware/almacen/credenciales.h
 hardware/pantalla/configs.py
 hardware/pantalla/uploader/checksum_db.txt
 
+.beads/
+.vscode/
+.planning/

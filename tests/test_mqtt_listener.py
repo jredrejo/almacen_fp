@@ -29,9 +29,9 @@ class TestMQTTListenerBatchProcessor(TestCase):
             username="test_user", email="test@example.com", password="testpass123"
         )
 
-        # Crear aulas
-        self.aula1 = Aula.objects.create(nombre="Aula Test 1")
-        self.aula2 = Aula.objects.create(nombre="Aula Test 2")
+        # Crear aulas con modo de operación
+        self.aula1 = Aula.objects.create(nombre="Aula Test 1", operation_mode="WITH_PERSONA")
+        self.aula2 = Aula.objects.create(nombre="Aula Test 2", operation_mode="WITH_PERSONA")
 
         # Crear personas (get or create in case signal already created one)
         self.persona, created = Persona.objects.get_or_create(
@@ -90,7 +90,6 @@ class TestMQTTListenerBatchProcessor(TestCase):
         self.assertNotIn(self.aula1.id, processor.batches)
         self.assertNotIn(self.aula1.id, processor.last_epc_time)
 
-    @patch("almacen.management.commands.mqtt_listener.OPERATION_MODE", "WITH_PERSONA")
     def test_batch_processing_with_loan_creation(self):
         """Prueba procesamiento por lotes que crea un préstamo."""
         processor = BatchProcessor(batch_time_seconds=1)
@@ -125,7 +124,6 @@ class TestMQTTListenerBatchProcessor(TestCase):
         self.assertEqual(ubicacion.estado, "PERSONA")
         self.assertEqual(ubicacion.persona, self.staff_user)
 
-    @patch("almacen.management.commands.mqtt_listener.OPERATION_MODE", "WITH_PERSONA")
     def test_batch_processing_with_loan_return(self):
         """Prueba procesamiento por lotes que devuelve un préstamo."""
         processor = BatchProcessor(batch_time_seconds=1)
@@ -162,7 +160,6 @@ class TestMQTTListenerBatchProcessor(TestCase):
         self.assertEqual(ubicacion.estado, "ESTANTE")
         self.assertIsNone(ubicacion.persona)
 
-    @patch("almacen.management.commands.mqtt_listener.OPERATION_MODE", "WITH_PERSONA")
     def test_batch_processing_without_persona_creates_error(self):
         """Prueba que el procesamiento por lotes falla cuando no se encuentra persona en modo WITH_PERSONA."""
         processor = BatchProcessor(batch_time_seconds=1)
@@ -180,16 +177,19 @@ class TestMQTTListenerBatchProcessor(TestCase):
         )
         self.assertEqual(active_loans.count(), 0)
 
-    @patch(
-        "almacen.management.commands.mqtt_listener.OPERATION_MODE", "WITHOUT_PERSONA"
-    )
     def test_batch_processing_without_persona_mode(self):
         """Prueba procesamiento por lotes en modo WITHOUT_PERSONA crea préstamos sin usuario."""
+        # Crear un aula con modo WITHOUT_PERSONA
+        aula_sin_persona = Aula.objects.create(nombre="Aula Sin Persona", operation_mode="WITHOUT_PERSONA")
+        # Asignar el producto a esta aula
+        self.product1.aula = aula_sin_persona
+        self.product1.save()
+
         processor = BatchProcessor(batch_time_seconds=1)
 
         # Añadir only product, no persona
         timestamp = timezone.now() - timedelta(seconds=2)  # Make it expired
-        processor.add_epc(self.aula1.id, "PRODUCT_EPC_001", timestamp)
+        processor.add_epc(aula_sin_persona.id, "PRODUCT_EPC_001", timestamp)
 
         # Procesar the batch
         processor.check_and_process_batches()

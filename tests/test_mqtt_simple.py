@@ -26,8 +26,8 @@ class TestMQTTSimple(TestCase):
             username="test_user", email="test@example.com", password="testpass123"
         )
 
-        # Crear aula
-        self.aula = Aula.objects.create(nombre="Test Aula")
+        # Crear aula con modo de operación
+        self.aula = Aula.objects.create(nombre="Test Aula", operation_mode="WITH_PERSONA")
 
         # Crear persona
         self.persona, created = Persona.objects.get_or_create(
@@ -42,7 +42,6 @@ class TestMQTTSimple(TestCase):
             epc="PRODUCT_EPC_001", nombre="Test Product", aula=self.aula
         )
 
-    @patch("almacen.management.commands.mqtt_listener.OPERATION_MODE", "WITH_PERSONA")
     def test_direct_process_producto_epc(self):
         """Prueba llamando directamente al método _process_producto_epc."""
         processor = BatchProcessor(batch_time_seconds=1)

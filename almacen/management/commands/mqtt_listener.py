@@ -18,8 +18,8 @@ MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
 MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
 MQTT_USER = os.getenv("MQTT_USER", "")
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", "")
-MQTT_TOPIC = "rfid/#"
-MQTT_TOPIC_READINGS = "rfid/lectura"
+MQTT_TOPIC_LECTURA = "rfid/lectura/+"
+MQTT_TOPIC_SISTEMA = "rfid/sistema"
 
 # --- Configuración de Batch ---
 BATCH_TIME_SECONDS = int(os.getenv("BATCH_TIME_SECONDS", 5))
@@ -361,76 +361,98 @@ class Command(BaseCommand):
         """Callback al conectarse al broker."""
         if rc == 0:
             logger.info("Conectado al broker MQTT.")
-            client.subscribe(MQTT_TOPIC)
-            logger.info(f"Suscrito al tema: {MQTT_TOPIC}")
+            client.subscribe(MQTT_TOPIC_LECTURA)
+            client.subscribe(MQTT_TOPIC_SISTEMA)
+            logger.info(f"Suscrito a {MQTT_TOPIC_LECTURA} y {MQTT_TOPIC_SISTEMA}")
         else:
             logger.error(f"Conexión fallida con código {rc}")
 
     def on_message(self, client, userdata, msg):
-        """Callback al recibir un mensaje. Espera un payload JSON."""
+        """Callback al recibir un mensaje. Routing por tipo de topic."""
         try:
             payload_str = msg.payload.decode("utf-8")
-            if MQTT_TOPIC_READINGS not in msg.topic:
-                logger.warning(
-                    f"Mensaje recibido: {payload_str} en topic no usado para EPC: {msg.topic}"
-                )
-                return
+            topic_parts = msg.topic.split('/')
 
-            try:
-                data = json.loads(payload_str)
-            except json.JSONDecodeError:
-                logger.error(
-                    f"Error decodificando JSON en el mensaje del topic {msg.topic}. "
-                    f"Payload: {payload_str[:50]}..."
-                )
-                return
-
-            # Extraer los campos esperados del JSON
-            aula_id = data.get("aula_id")
-            epc = data.get("epc")
-            timestamp_str = data.get("timestamp")
-
-            if not all([aula_id, epc, timestamp_str]):
-                logger.warning(
-                    f"Campos clave (aula_id, epc, timestamp) faltantes en el payload JSON: "
-                    f"{data} (Topic: {msg.topic})"
-                )
-                return
-
-            # Convertir el timestamp ISO 8601 a un objeto datetime aware de Django
-            try:
-                # El formato es '2025-10-07T10:30:00'. fromisoformat maneja esto.
-                leido_en = datetime.fromisoformat(timestamp_str)
-                # Si el timestamp no incluye zona horaria (como en el ejemplo), asumimos UTC o la configuración de Django
-                if (
-                    leido_en.tzinfo is None
-                    or leido_en.tzinfo.utcoffset(leido_en) is None
-                ):
-                    leido_en = timezone.make_aware(leido_en)
-            except ValueError:
-                logger.error(f"Formato de timestamp ('{timestamp_str}') inválido.")
-                return
-
-            # Validar la existencia del Aula
-            try:
-                Aula.objects.get(pk=aula_id)
-            except Aula.DoesNotExist:
-                logger.error(
-                    f"Aula con ID {aula_id} no encontrada en la BD "
-                    f"(Reportada por {msg.topic})."
-                )
-                return
-
-            # Almacenamiento en caché de Django
-            cache_key = CACHE_KEY_FORMAT.format(aula_id)
-            data_to_cache = {
-                "epc": epc,
-                "leido_en": leido_en,
-            }
-            epc_cache.set(cache_key, data_to_cache, timeout=CACHE_TIMEOUT_SECONDS)
-
-            # Agregar al batch processor
-            self.batch_processor.add_epc(aula_id, epc, leido_en)
-
+            # Routing por tipo de topic
+            if len(topic_parts) == 3 and topic_parts[1] == 'lectura':
+                aula_id_from_topic = topic_parts[2]
+                self._process_lectura(aula_id_from_topic, payload_str, msg.topic)
+            elif len(topic_parts) == 2 and topic_parts[1] == 'sistema':
+                logger.info(f"Evento sistema MQTT: {payload_str}")
+            else:
+                logger.warning(f"Topic no reconocido: {msg.topic}")
         except Exception as e:
             logger.exception(f"Error inesperado procesando mensaje MQTT: {e}")
+
+    def _process_lectura(self, aula_id_from_topic, payload_str, topic):
+        """Procesa un mensaje del topic rfid/lectura/{aula_id}."""
+        try:
+            data = json.loads(payload_str)
+        except json.JSONDecodeError:
+            logger.error(
+                f"Error decodificando JSON en el mensaje del topic {topic}. "
+                f"Payload: {payload_str[:50]}..."
+            )
+            return
+
+        # Extraer los campos esperados del JSON
+        aula_id = data.get("aula_id")
+        epc = data.get("epc")
+        timestamp_str = data.get("timestamp")
+
+        if not all([epc, timestamp_str]):
+            logger.warning(
+                f"Campos clave (epc, timestamp) faltantes en el payload JSON: "
+                f"{data} (Topic: {topic})"
+            )
+            return
+
+        # Validar coincidencia de aula_id: topic vs payload
+        if aula_id is not None and str(aula_id) != aula_id_from_topic:
+            logger.warning(
+                f"aula_id del topic ({aula_id_from_topic}) difiere del payload ({aula_id}). "
+                f"Usando topic como fuente de verdad."
+            )
+
+        # Convertir aula_id del topic a int (fuente de verdad)
+        try:
+            aula_id = int(aula_id_from_topic)
+        except ValueError:
+            logger.error(f"aula_id del topic '{aula_id_from_topic}' no es un número válido.")
+            return
+
+        # Convertir el timestamp ISO 8601 a un objeto datetime aware de Django
+        try:
+            # El formato es '2025-10-07T10:30:00'. fromisoformat maneja esto.
+            leido_en = datetime.fromisoformat(timestamp_str)
+            # Si el timestamp no incluye zona horaria (como en el ejemplo),
+            # asumimos UTC o la configuración de Django
+            if (
+                leido_en.tzinfo is None
+                or leido_en.tzinfo.utcoffset(leido_en) is None
+            ):
+                leido_en = timezone.make_aware(leido_en)
+        except ValueError:
+            logger.error(f"Formato de timestamp ('{timestamp_str}') inválido.")
+            return
+
+        # Validar la existencia del Aula
+        try:
+            Aula.objects.get(pk=aula_id)
+        except Aula.DoesNotExist:
+            logger.error(
+                f"Aula con ID {aula_id} no encontrada en la BD "
+                f"(Topic: {topic})."
+            )
+            return
+
+        # Almacenamiento en caché de Django
+        cache_key = CACHE_KEY_FORMAT.format(aula_id)
+        data_to_cache = {
+            "epc": epc,
+            "leido_en": leido_en,
+        }
+        epc_cache.set(cache_key, data_to_cache, timeout=CACHE_TIMEOUT_SECONDS)
+
+        # Agregar al batch processor
+        self.batch_processor.add_epc(aula_id, epc, leido_en)
