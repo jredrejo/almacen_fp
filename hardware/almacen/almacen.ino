@@ -116,7 +116,7 @@ void obtenerFechaHora(char* buffer, size_t bufferSize) {
   time_t local = spain.toLocal(utc);
   // Convertir time_t a struct tm
   struct tm* timeinfo = localtime(&local);
-  strftime(buffer, bufferSize, "%Y-%m-%d %H:%M:%S", timeinfo);
+  strftime(buffer, bufferSize, "%Y-%m-%dT%H:%M:%S", timeinfo);
 }
 
 
@@ -128,58 +128,62 @@ void loop() {
   if (WiFi.status() != WL_CONNECTED) {
     setup_wifi();
   }
-  //Si no está conectado al servidor MQTT
-  if (!client.connected()) {
-    reconexion();
-  }
-  client.loop();
 
-  // Limpiamos el buffer periódicamente
-  if (millis() - lastCleanupTime > 2000) {
-    cleanupUidBuffer();
-    lastCleanupTime = millis();
-  }
+  // Maquina de estados para reconexion MQTT no bloqueante
+  mqttReconnectStateMachine();
 
+  if (mqttState == MQTT_CONNECTED) {
+    client.loop();
 
-  // IMPORTANTE: Procesar datos del RFID en cada iteración
-  // El lector enviará datos continuamente en multiple polling mode
-  rfid.loop();
-
-  // Verificar si hay una tarjeta presente
-  const uint8_t blankUid[12] = { 0 };
-
-  if (memcmp(rfid.uid, blankUid, 12) != 0) {
-    // Hay una tarjeta detectada
-
-#ifdef DEBUG
-    Serial.print("Nueva tarjeta detectada: ");
-    rfid.dumpUIDToSerial();
-    Serial.println();
-#endif
-
-    // Check if UID is in deduplication buffer
-    if (!isUidInBuffer(rfid.uid)) {
-      // UID not in buffer or expired - send data
-#ifdef DEBUG
-      Serial.println("UID not in buffer - sending MQTT message");
-#endif
-      // Enviar datos por MQTT
-      envio_datos(rfid.uid);
-
-      // Add UID to buffer
-      addUidToBuffer(rfid.uid);
-    } else {
-      // UID is in buffer and still valid - skip sending
-#ifdef DEBUG
-      Serial.println("UID in buffer (within TTL) - skipping MQTT publish");
-#endif
+    // Limpiamos el buffer periódicamente
+    if (millis() - lastCleanupTime > 2000) {
+      cleanupUidBuffer();
+      lastCleanupTime = millis();
     }
-    // Limpiar el UID después de procesar para evitar múltiples lecturas del mismo tag
-    // en la misma o siguientes iteraciones. El buffer (isUidInBuffer) gestiona
-    // la deduplicación basada en tiempo.
+
+    // IMPORTANTE: Procesar datos del RFID en cada iteración
+    // El lector enviará datos continuamente en multiple polling mode
+    rfid.loop();
+
+    // Verificar si hay una tarjeta presente
+    const uint8_t blankUid[12] = { 0 };
+
+    if (memcmp(rfid.uid, blankUid, 12) != 0) {
+      // Hay una tarjeta detectada
+
+#ifdef DEBUG
+      Serial.print("Nueva tarjeta detectada: ");
+      rfid.dumpUIDToSerial();
+      Serial.println();
+#endif
+
+      // Check if UID is in deduplication buffer
+      if (!isUidInBuffer(rfid.uid)) {
+        // UID not in buffer or expired - send data
+#ifdef DEBUG
+        Serial.println("UID not in buffer - sending MQTT message");
+#endif
+        // Enviar datos por MQTT
+        envio_datos(rfid.uid);
+
+        // Add UID to buffer
+        addUidToBuffer(rfid.uid);
+      } else {
+        // UID is in buffer and still valid - skip sending
+#ifdef DEBUG
+        Serial.println("UID in buffer (within TTL) - skipping MQTT publish");
+#endif
+      }
+      // Limpiar el UID después de procesar para evitar múltiples lecturas del mismo tag
+      // en la misma o siguientes iteraciones. El buffer (isUidInBuffer) gestiona
+      // la deduplicación basada en tiempo.
+      memset(rfid.uid, 0, 12);
+    }
+  } else {
+    // Leer y descartar datos RFID para mantener el buffer limpio mientras estamos desconectados
+    rfid.loop();
     memset(rfid.uid, 0, 12);
   }
-
 
 #ifdef DEBUG
   // Debug info periódico (cada 5 segundos)

@@ -237,6 +237,136 @@ class TestMQTTListenerBatchProcessor(TestCase):
 
 
 @pytest.mark.django_db
+class TestMQTTListenerRouting(TestCase):
+    """Prueba el routing de topics MQTT y extracción de aula_id."""
+
+    def setUp(self):
+        """Configurar datos de prueba."""
+        self.aula = Aula.objects.create(nombre="Aula Test Routing")
+        from almacen.management.commands.mqtt_listener import Command, BatchProcessor
+        from datetime import timedelta
+
+        self.command = Command()
+        self.command.batch_processor = BatchProcessor(batch_time_seconds=5)
+
+    def test_on_message_lectura_topic(self):
+        """Prueba procesamiento de mensaje en topic rfid/lectura/{aula_id}."""
+        from unittest.mock import MagicMock
+        import json
+
+        # Crear mensaje mock para rfid/lectura/1
+        msg = MagicMock()
+        msg.topic = "rfid/lectura/1"
+        msg.payload = json.dumps({
+            "aula_id": "1",
+            "epc": "AABBCCDDEEFF001122334455",
+            "timestamp": "2026-03-17T14:30:05"
+        }).encode('utf-8')
+
+        # Mockear el método add_epc para verificar que fue llamado
+        self.command.batch_processor.add_epc = MagicMock()
+
+        # Llamar al callback
+        self.command.on_message(client=MagicMock(), userdata=None, msg=msg)
+
+        # Verificar que add_epc fue llamado con aula_id="1"
+        self.command.batch_processor.add_epc.assert_called_once()
+        call_args = self.command.batch_processor.add_epc.call_args
+        self.assertEqual(call_args[0][0], 1)  # aula_id como int
+        self.assertEqual(call_args[0][1], "AABBCCDDEEFF001122334455")
+
+    def test_on_message_sistema_topic(self):
+        """Prueba que mensajes en rfid/sistema se loguean pero no se procesan."""
+        from unittest.mock import MagicMock
+        import json
+
+        # Crear mensaje mock para rfid/sistema
+        msg = MagicMock()
+        msg.topic = "rfid/sistema"
+        msg.payload = json.dumps({
+            "reader_id": "almacen_1",
+            "status": "online"
+        }).encode('utf-8')
+
+        # Mockear batch_processor para verificar que NO fue llamado
+        self.command.batch_processor.add_epc = MagicMock()
+
+        # Llamar al callback
+        self.command.on_message(client=MagicMock(), userdata=None, msg=msg)
+
+        # Verificar que add_epc NO fue llamado
+        self.command.batch_processor.add_epc.assert_not_called()
+
+    def test_on_message_unknown_topic(self):
+        """Prueba que topics no reconocidos se descartan."""
+        from unittest.mock import MagicMock
+        import json
+
+        # Crear mensaje mock para topic no reconocido
+        msg = MagicMock()
+        msg.topic = "rfid/pantalla/1"
+        msg.payload = json.dumps({
+            "epc": "AABBCCDDEEFF001122334455"
+        }).encode('utf-8')
+
+        # Mockear batch_processor
+        self.command.batch_processor.add_epc = MagicMock()
+
+        # Llamar al callback
+        self.command.on_message(client=MagicMock(), userdata=None, msg=msg)
+
+        # Verificar que add_epc NO fue llamado
+        self.command.batch_processor.add_epc.assert_not_called()
+
+    def test_on_message_aula_id_mismatch(self):
+        """Prueba warning cuando aula_id del topic difiere del payload."""
+        from unittest.mock import MagicMock, patch
+        import json
+
+        # Crear mensaje con aula_id en topic = 1 pero en JSON = 2
+        msg = MagicMock()
+        msg.topic = "rfid/lectura/1"
+        msg.payload = json.dumps({
+            "aula_id": "2",  # Difiere del topic
+            "epc": "AABBCCDDEEFF001122334455",
+            "timestamp": "2026-03-17T14:30:05"
+        }).encode('utf-8')
+
+        # Mockear batch_processor
+        self.command.batch_processor.add_epc = MagicMock()
+
+        # Patch del logger para capturar el warning
+        with patch('almacen.management.commands.mqtt_listener.logger') as mock_logger:
+            self.command.on_message(client=MagicMock(), userdata=None, msg=msg)
+
+            # Verificar warning logueado
+            mock_logger.warning.assert_called()
+            warning_msg = str(mock_logger.warning.call_args)
+            self.assertIn("difiere del payload", warning_msg)
+
+        # Verificar que se usó aula_id del topic (1) en lugar del JSON (2)
+        self.command.batch_processor.add_epc.assert_called_once()
+        call_args = self.command.batch_processor.add_epc.call_args
+        self.assertEqual(call_args[0][0], 1)  # aula_id del topic
+
+    def test_on_connect_subscriptions(self):
+        """Prueba que on_connect se suscribe a los topics correctos."""
+        from unittest.mock import MagicMock
+
+        mock_client = MagicMock()
+
+        # Llamar a on_connect con rc=0 (éxito)
+        self.command.on_connect(client=mock_client, userdata=None, flags={}, rc=0)
+
+        # Verificar que se suscribió a ambos topics
+        self.assertEqual(mock_client.subscribe.call_count, 2)
+        subscribe_calls = [str(call) for call in mock_client.subscribe.call_args_list]
+        subscribe_str = ' '.join(subscribe_calls)
+        self.assertIn("rfid/lectura/+", subscribe_str)
+        self.assertIn("rfid/sistema", subscribe_str)
+
+
+@pytest.mark.django_db
 class TestMQTTListenerCommand(TestCase):
     """Prueba the MQTT listener management command."""
 

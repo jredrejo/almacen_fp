@@ -15,20 +15,18 @@ void envio_datos(uint8_t* uid) {
            hex_uid,
            timestamp);
 
+  // Publicar primero a lectura (critico para registro en Django)
   char topic[64];
-  snprintf(topic, sizeof(topic), "rfid/pantalla/%s", clientId);
+  snprintf(topic, sizeof(topic), "rfid/lectura/%s", aulaId);
 
-  if (!client.publish(topic, "1")) {
-#ifdef DEBUG
-    Serial.println("Error MQTT publicación pantalla");
-#endif
+  if (client.publish(topic, payload)) {
+    // Solo publicar a pantalla si lectura fue exitosa
+    snprintf(topic, sizeof(topic), "rfid/pantalla/%s", aulaId);
+    client.publish(topic, payload);
   }
-
-  snprintf(topic, sizeof(topic), "rfid/lectura/%s", clientId);
-
-  if (!client.publish(topic, payload)) {
 #ifdef DEBUG
-    Serial.println("Error MQTT");
-#endif
+  else {
+    Serial.println("Error MQTT publicacion lectura");
   }
+#endif
 }
