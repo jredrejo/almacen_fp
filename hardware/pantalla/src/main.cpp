@@ -19,6 +19,7 @@
 #include "mqtt_manager.h"
 #include "api_client.h"
 #include "display_manager.h"
+#include "sound_manager.h"
 
 // --- Clientes de red ---
 WiFiClient espClient;
@@ -58,6 +59,13 @@ uint8_t* splashData = nullptr;
 size_t splashSize = 0;
 uint8_t* splashSmallData = nullptr;
 size_t splashSmallSize = 0;
+
+// --- Variables de animacion idle DVD-screensaver ---
+int idleX = 0, idleY = 0;                     // Posicion actual de splash_small
+int idleDx = 3, idleDy = 2;                   // Velocidad en pixeles por frame (diagonal no repetitiva)
+const int IMG_SIZE = 256;                       // splash_small.png es 256x256
+unsigned long lastFrameTime = 0;
+const unsigned long FRAME_INTERVAL = 16;        // ~60fps
 
 /**
  * Carga una imagen PNG desde la SD card a un buffer en PSRAM.
@@ -114,6 +122,49 @@ void obtenerHoraLocal(char* buffer, size_t bufferSize) {
   strftime(buffer, bufferSize, "%H:%M", timeinfo);
 }
 
+/**
+ * Inicia la animacion idle con posicion aleatoria.
+ * Llamar al transicionar a STATE_IDLE para que la imagen
+ * aparezca en un punto diferente cada vez.
+ */
+void iniciarAnimacionIdle() {
+  idleX = random(0, SCREEN_WIDTH - IMG_SIZE);
+  idleY = random(0, SCREEN_HEIGHT - IMG_SIZE);
+}
+
+/**
+ * Actualiza un frame de la animacion idle DVD-screensaver.
+ * Mueve splash_small.png en diagonal, rebotando en los bordes.
+ * Usa pantalla completa (sin barra de estado) con double-buffering.
+ * Limita a ~60fps para rendimiento estable.
+ */
+void actualizarAnimacionIdle() {
+  // Limitar framerate
+  if (millis() - lastFrameTime < FRAME_INTERVAL) return;
+  lastFrameTime = millis();
+
+  // Mover posicion
+  idleX += idleDx;
+  idleY += idleDy;
+
+  // Rebote en bordes (pantalla completa, sin barra de estado)
+  if (idleX <= 0 || idleX + IMG_SIZE >= SCREEN_WIDTH) {
+    idleDx = -idleDx;
+    idleX = constrain(idleX, 0, SCREEN_WIDTH - IMG_SIZE);
+  }
+  if (idleY <= 0 || idleY + IMG_SIZE >= SCREEN_HEIGHT) {
+    idleDy = -idleDy;
+    idleY = constrain(idleY, 0, SCREEN_HEIGHT - IMG_SIZE);
+  }
+
+  // Dibujar en canvas (double-buffering sin flicker)
+  canvas.fillScreen(TFT_BLACK);
+  if (splashSmallData != nullptr) {
+    canvas.drawPng(splashSmallData, splashSmallSize, idleX, idleY);
+  }
+  canvas.pushSprite(0, 0);
+}
+
 // =============================================================================
 // Setup - Inicializacion del hardware y conectividad
 // =============================================================================
@@ -122,13 +173,16 @@ void setup() {
   auto cfg = M5.config();
   M5.begin(cfg);
 
-  // 2. Puerto serie para debug
+  // 2. Configurar altavoz
+  setupSpeaker();
+
+  // 3. Puerto serie para debug
   Serial.begin(115200);
 
-  // 3. Configurar pantalla horizontal (1280x720)
+  // 4. Configurar pantalla horizontal (1280x720)
   M5.Display.setRotation(1);
 
-  // 4. Crear canvas para double-buffering (usa PSRAM automaticamente)
+  // 5. Crear canvas para double-buffering (usa PSRAM automaticamente)
   canvas.createSprite(SCREEN_WIDTH, SCREEN_HEIGHT);
 
 #ifdef DEBUG
@@ -137,7 +191,7 @@ void setup() {
   Serial.println("=================================");
 #endif
 
-  // 5. Cargar imagenes desde SD a PSRAM (antes del boot screen para mostrar splash)
+  // 6. Cargar imagenes desde SD a PSRAM (antes del boot screen para mostrar splash)
   bool splashOk = cargarImagenSD("/splash.png", &splashData, &splashSize);
   bool splashSmallOk = cargarImagenSD("/splash_small.png", &splashSmallData, &splashSmallSize);
 
@@ -148,7 +202,7 @@ void setup() {
 #endif
   }
 
-  // 6. Boot screen progresivo: WiFi
+  // 7. Boot screen progresivo: WiFi
   mostrarPantallaBoot(splashData, splashSize, "Conectando WiFi...");
   bool wifiOk = setupWifi();
   if (!wifiOk) {
@@ -157,7 +211,7 @@ void setup() {
 #endif
   }
 
-  // 7. Inicializar NTP y sincronizar hora
+  // 8. Inicializar NTP y sincronizar hora
   timeClient.begin();
   if (wifiOk) {
     timeClient.update();
@@ -170,7 +224,7 @@ void setup() {
 #endif
   }
 
-  // 8. Boot screen progresivo: MQTT
+  // 9. Boot screen progresivo: MQTT
   mostrarPantallaBoot(splashData, splashSize, "Conectando MQTT...");
   setupMqtt(mqttClient);
   if (wifiOk) {
@@ -181,13 +235,12 @@ void setup() {
     }
   }
 
-  // 9. Boot screen progresivo: Listo
+  // 10. Boot screen progresivo: Listo
   mostrarPantallaBoot(splashData, splashSize, "Listo");
   delay(1000);  // Mostrar "Listo" brevemente
 
-  // 10. Transicionar a estado IDLE (limpiar pantalla a negro)
-  canvas.fillScreen(TFT_BLACK);
-  canvas.pushSprite(0, 0);
+  // 11. Transicionar a estado IDLE e iniciar animacion
+  iniciarAnimacionIdle();
   appState = STATE_IDLE;
 
 #ifdef DEBUG
@@ -201,8 +254,9 @@ void setup() {
 // Loop - Bucle principal no bloqueante con maquina de estados
 // =============================================================================
 void loop() {
-  // 1. Actualizar estado del hardware M5
+  // 1. Actualizar estado del hardware M5 y sonido
   M5.update();
+  actualizarSonido();
 
   // 2. Verificar conectividad y gestionar reconexion
   bool wifiConnected = wifiReconnectCheck();
@@ -257,9 +311,15 @@ void loop() {
 
     if (info.encontrado) {
       mostrarNotificacion(info.nombre.c_str(), info.tipo.c_str(), NOMBRE_AULA, hora);
-      // Sonido se anade en plan 03
+      // Tono diferenciado segun tipo de deteccion
+      if (info.tipo == "persona") {
+        reproducirTonoPersona();
+      } else {
+        reproducirTonoProducto();
+      }
     } else {
       mostrarEpcDesconocido(pendingEpc.c_str(), NOMBRE_AULA, hora);
+      reproducirTonoProducto();  // Mismo sonido para desconocido (decision locked)
     }
     appState = STATE_NOTIFICATION;
     notificationStart = millis();
@@ -272,15 +332,13 @@ void loop() {
       break;
 
     case STATE_IDLE:
-      // Placeholder: animacion DVD-screensaver se implementa en plan 03
+      actualizarAnimacionIdle();
       break;
 
     case STATE_NOTIFICATION:
-      // Si paso el tiempo de notificacion, volver a idle
+      // Si paso el tiempo de notificacion, volver a idle con animacion
       if (millis() - notificationStart >= NOTIFICATION_DURATION) {
-        // Limpiar pantalla a negro (animacion idle se implementa en plan 03)
-        canvas.fillScreen(TFT_BLACK);
-        canvas.pushSprite(0, 0);
+        iniciarAnimacionIdle();  // Reiniciar posicion aleatoria
         appState = STATE_IDLE;
 #ifdef DEBUG
         Serial.println("Notificacion finalizada - volviendo a IDLE");
