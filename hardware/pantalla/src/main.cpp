@@ -17,6 +17,8 @@
 #include "config.h"
 #include "wifi_manager.h"
 #include "mqtt_manager.h"
+#include "api_client.h"
+#include "display_manager.h"
 
 // --- Clientes de red ---
 WiFiClient espClient;
@@ -29,6 +31,12 @@ NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);  // Sin offset, Timezone
 TimeChangeRule summerTime = { "CEST", Last, Sun, Mar, 1, 120 };
 TimeChangeRule winterTime = { "CET", Last, Sun, Oct, 1, 60 };
 Timezone spain(summerTime, winterTime);
+
+// --- Canvas para double-buffering (usado por display_manager.h) ---
+M5Canvas canvas(&M5.Display);
+
+// --- Nombre del aula para barra de estado ---
+const char* NOMBRE_AULA = "Aula " AULA_ID;
 
 // --- Maquina de estados principal ---
 enum AppState {
@@ -120,13 +128,28 @@ void setup() {
   // 3. Configurar pantalla horizontal (1280x720)
   M5.Display.setRotation(1);
 
+  // 4. Crear canvas para double-buffering (usa PSRAM automaticamente)
+  canvas.createSprite(SCREEN_WIDTH, SCREEN_HEIGHT);
+
 #ifdef DEBUG
   Serial.println("=================================");
   Serial.println("Tab5 Pantalla Almacen - Iniciando...");
   Serial.println("=================================");
 #endif
 
-  // 4. Conectar WiFi (espera bloqueante solo aqui, max 20s)
+  // 5. Cargar imagenes desde SD a PSRAM (antes del boot screen para mostrar splash)
+  bool splashOk = cargarImagenSD("/splash.png", &splashData, &splashSize);
+  bool splashSmallOk = cargarImagenSD("/splash_small.png", &splashSmallData, &splashSmallSize);
+
+  if (!splashOk || !splashSmallOk) {
+#ifdef DEBUG
+    Serial.println("AVISO: No se pudieron cargar imagenes desde SD");
+    Serial.println("El firmware funcionara sin animacion visual");
+#endif
+  }
+
+  // 6. Boot screen progresivo: WiFi
+  mostrarPantallaBoot(splashData, splashSize, "Conectando WiFi...");
   bool wifiOk = setupWifi();
   if (!wifiOk) {
 #ifdef DEBUG
@@ -134,7 +157,7 @@ void setup() {
 #endif
   }
 
-  // 5. Inicializar NTP y sincronizar hora
+  // 7. Inicializar NTP y sincronizar hora
   timeClient.begin();
   if (wifiOk) {
     timeClient.update();
@@ -147,7 +170,8 @@ void setup() {
 #endif
   }
 
-  // 6. Configurar MQTT y primer intento de conexion
+  // 8. Boot screen progresivo: MQTT
+  mostrarPantallaBoot(splashData, splashSize, "Conectando MQTT...");
   setupMqtt(mqttClient);
   if (wifiOk) {
     if (attemptMqttConnect(mqttClient)) {
@@ -157,18 +181,13 @@ void setup() {
     }
   }
 
-  // 7. Cargar imagenes desde SD a PSRAM
-  bool splashOk = cargarImagenSD("/splash.png", &splashData, &splashSize);
-  bool splashSmallOk = cargarImagenSD("/splash_small.png", &splashSmallData, &splashSmallSize);
+  // 9. Boot screen progresivo: Listo
+  mostrarPantallaBoot(splashData, splashSize, "Listo");
+  delay(1000);  // Mostrar "Listo" brevemente
 
-  if (!splashOk || !splashSmallOk) {
-#ifdef DEBUG
-    Serial.println("AVISO: No se pudieron cargar imagenes desde SD");
-    Serial.println("El firmware funcionara sin animacion visual");
-#endif
-  }
-
-  // 8. Transicionar a estado IDLE
+  // 10. Transicionar a estado IDLE (limpiar pantalla a negro)
+  canvas.fillScreen(TFT_BLACK);
+  canvas.pushSprite(0, 0);
   appState = STATE_IDLE;
 
 #ifdef DEBUG
@@ -196,6 +215,12 @@ void loop() {
 #ifdef DEBUG
       Serial.println("Entrando en estado RECONNECTING");
 #endif
+      // Mostrar pantalla de reconexion segun el tipo de fallo
+      if (!wifiConnected) {
+        mostrarPantallaReconexion("Reconectando WiFi...");
+      } else {
+        mostrarPantallaReconexion("Reconectando MQTT...");
+      }
     }
 
     // Ejecutar maquina de estados MQTT solo si WiFi esta conectado
@@ -223,8 +248,21 @@ void loop() {
     Serial.print("EPC recibido: ");
     Serial.println(pendingEpc);
 #endif
-    // La resolucion HTTP y display se implementan en plan 02
     hasPendingEpc = false;
+
+    // Resolver EPC via API HTTP
+    EpcInfo info = resolverEpc(pendingEpc);
+    char hora[6];
+    obtenerHoraLocal(hora, sizeof(hora));
+
+    if (info.encontrado) {
+      mostrarNotificacion(info.nombre.c_str(), info.tipo.c_str(), NOMBRE_AULA, hora);
+      // Sonido se anade en plan 03
+    } else {
+      mostrarEpcDesconocido(pendingEpc.c_str(), NOMBRE_AULA, hora);
+    }
+    appState = STATE_NOTIFICATION;
+    notificationStart = millis();
   }
 
   // 5. Maquina de estados principal
@@ -240,6 +278,9 @@ void loop() {
     case STATE_NOTIFICATION:
       // Si paso el tiempo de notificacion, volver a idle
       if (millis() - notificationStart >= NOTIFICATION_DURATION) {
+        // Limpiar pantalla a negro (animacion idle se implementa en plan 03)
+        canvas.fillScreen(TFT_BLACK);
+        canvas.pushSprite(0, 0);
         appState = STATE_IDLE;
 #ifdef DEBUG
         Serial.println("Notificacion finalizada - volviendo a IDLE");
