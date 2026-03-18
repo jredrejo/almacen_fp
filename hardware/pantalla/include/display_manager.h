@@ -17,12 +17,24 @@ extern M5Canvas canvas;
 static constexpr int SCREEN_WIDTH = 1280;       // Ancho tras rotacion
 static constexpr int SCREEN_HEIGHT = 720;        // Alto tras rotacion
 static constexpr int STATUS_BAR_HEIGHT = 80;     // Alto de barra de estado inferior
-static constexpr int MAIN_ZONE_HEIGHT = 640;     // Zona principal (720 - 80)
+static constexpr int MAIN_ZONE_HEIGHT = 440;      // Zona principal para notificaciones (reducida)
+static constexpr int LOG_ZONE_HEIGHT = 200;        // Zona de log de ultimos eventos RFID
+static constexpr int LOG_ZONE_Y = MAIN_ZONE_HEIGHT;                     // Y inicio del log (440)
+static constexpr int STATUS_BAR_Y = MAIN_ZONE_HEIGHT + LOG_ZONE_HEIGHT; // Y inicio barra estado (640)
+static constexpr int MAX_LOG_ENTRIES = 5;          // Maximo de entradas visibles en el log
 
 // --- Colores diferenciados por tipo ---
 static constexpr int COLOR_PRODUCTO = TFT_CYAN;       // Cian para productos
 static constexpr int COLOR_PERSONA = TFT_YELLOW;      // Amarillo para personas
 static constexpr int COLOR_DESCONOCIDO = TFT_ORANGE;  // Naranja para EPC desconocido
+
+// --- Estructura para entrada del log de eventos ---
+struct LogEntry {
+  char nombre[64];    // Nombre del producto/persona/EPC
+  char tipo[16];      // "producto", "persona", "desconocido"
+  char hora[6];       // "HH:MM"
+  bool activo;        // true si la entrada tiene datos
+};
 
 /**
  * Muestra la pantalla de boot con splash.png centrada y mensaje progresivo debajo.
@@ -55,18 +67,60 @@ inline void mostrarPantallaBoot(uint8_t* splashData, size_t splashSize, const ch
  */
 inline void dibujarBarraEstado(const char* nombreAula, const char* horaLocal) {
   // Fondo gris oscuro para la barra
-  canvas.fillRect(0, MAIN_ZONE_HEIGHT, SCREEN_WIDTH, STATUS_BAR_HEIGHT, TFT_DARKGREY);
+  canvas.fillRect(0, STATUS_BAR_Y, SCREEN_WIDTH, STATUS_BAR_HEIGHT, TFT_DARKGREY);
 
   canvas.setTextColor(TFT_WHITE);
   canvas.setTextSize(3);
 
   // Nombre del aula a la izquierda
   canvas.setTextDatum(middle_left);
-  canvas.drawString(nombreAula, 20, MAIN_ZONE_HEIGHT + STATUS_BAR_HEIGHT / 2);
+  canvas.drawString(nombreAula, 20, STATUS_BAR_Y + STATUS_BAR_HEIGHT / 2);
 
   // Reloj a la derecha
   canvas.setTextDatum(middle_right);
-  canvas.drawString(horaLocal, SCREEN_WIDTH - 20, MAIN_ZONE_HEIGHT + STATUS_BAR_HEIGHT / 2);
+  canvas.drawString(horaLocal, SCREEN_WIDTH - 20, STATUS_BAR_Y + STATUS_BAR_HEIGHT / 2);
+}
+
+/**
+ * Dibuja la zona de log de eventos con las ultimas detecciones RFID.
+ * Fondo gris muy oscuro para separar de la zona principal.
+ * NO hace pushSprite — el caller debe hacerlo.
+ * @param entries Array de LogEntry con los eventos
+ * @param count Numero de entradas activas (0 a MAX_LOG_ENTRIES)
+ */
+inline void dibujarLogEventos(const LogEntry* entries, int count) {
+  // Fondo gris muy oscuro para la zona de log
+  canvas.fillRect(0, LOG_ZONE_Y, SCREEN_WIDTH, LOG_ZONE_HEIGHT, 0x2104);
+
+  // Linea separadora superior
+  canvas.drawFastHLine(0, LOG_ZONE_Y, SCREEN_WIDTH, TFT_DARKGREY);
+
+  if (count <= 0) return;
+
+  // Calcular altura por entrada
+  int entryHeight = LOG_ZONE_HEIGHT / MAX_LOG_ENTRIES;
+  canvas.setTextSize(2);
+  canvas.setTextDatum(middle_left);
+
+  for (int i = 0; i < count && i < MAX_LOG_ENTRIES; i++) {
+    if (!entries[i].activo) continue;
+
+    int y = LOG_ZONE_Y + (i * entryHeight) + entryHeight / 2;
+
+    // Hora en blanco
+    canvas.setTextColor(TFT_WHITE);
+    canvas.drawString(entries[i].hora, 20, y);
+
+    // Nombre en color segun tipo
+    int color = COLOR_DESCONOCIDO;
+    if (strcmp(entries[i].tipo, "producto") == 0) {
+      color = COLOR_PRODUCTO;
+    } else if (strcmp(entries[i].tipo, "persona") == 0) {
+      color = COLOR_PERSONA;
+    }
+    canvas.setTextColor(color);
+    canvas.drawString(entries[i].nombre, 120, y);
+  }
 }
 
 /**
@@ -96,8 +150,7 @@ inline void mostrarNotificacion(const char* nombre, const char* tipo, const char
 
   // Barra de estado inferior
   dibujarBarraEstado(nombreAula, horaLocal);
-
-  canvas.pushSprite(0, 0);
+  // Caller debe llamar a dibujarLogEventos() y canvas.pushSprite(0,0)
 }
 
 /**
@@ -123,8 +176,7 @@ inline void mostrarEpcDesconocido(const char* epc, const char* nombreAula, const
 
   // Barra de estado inferior
   dibujarBarraEstado(nombreAula, horaLocal);
-
-  canvas.pushSprite(0, 0);
+  // Caller debe llamar a dibujarLogEventos() y canvas.pushSprite(0,0)
 }
 
 /**

@@ -59,6 +59,8 @@ uint8_t* splashData = nullptr;
 size_t splashSize = 0;
 uint8_t* splashSmallData = nullptr;
 size_t splashSmallSize = 0;
+uint8_t* fotoWavData = nullptr;
+size_t fotoWavSize = 0;
 
 // --- Variables de animacion idle DVD-screensaver ---
 int idleX = 0, idleY = 0;                     // Posicion actual de splash_small
@@ -66,6 +68,10 @@ int idleDx = 3, idleDy = 2;                   // Velocidad en pixeles por frame 
 const int IMG_SIZE = 256;                       // splash_small.png es 256x256
 unsigned long lastFrameTime = 0;
 const unsigned long FRAME_INTERVAL = 16;        // ~60fps
+
+// --- Buffer circular de ultimos eventos RFID para log ---
+LogEntry eventLog[MAX_LOG_ENTRIES];
+int eventLogCount = 0;
 
 /**
  * Carga una imagen PNG desde la SD card a un buffer en PSRAM.
@@ -165,6 +171,26 @@ void actualizarAnimacionIdle() {
   canvas.pushSprite(0, 0);
 }
 
+/**
+ * Anade un evento al log circular. El mas reciente queda en posicion 0.
+ * Si el log esta lleno, la entrada mas antigua se descarta.
+ */
+void agregarEvento(const char* nombre, const char* tipo, const char* hora) {
+  // Desplazar entradas hacia abajo (la mas antigua se pierde si hay MAX_LOG_ENTRIES)
+  for (int i = MAX_LOG_ENTRIES - 1; i > 0; i--) {
+    eventLog[i] = eventLog[i - 1];
+  }
+  // Insertar nueva entrada en posicion 0
+  strncpy(eventLog[0].nombre, nombre, sizeof(eventLog[0].nombre) - 1);
+  eventLog[0].nombre[sizeof(eventLog[0].nombre) - 1] = '\0';
+  strncpy(eventLog[0].tipo, tipo, sizeof(eventLog[0].tipo) - 1);
+  eventLog[0].tipo[sizeof(eventLog[0].tipo) - 1] = '\0';
+  strncpy(eventLog[0].hora, hora, sizeof(eventLog[0].hora) - 1);
+  eventLog[0].hora[sizeof(eventLog[0].hora) - 1] = '\0';
+  eventLog[0].activo = true;
+  if (eventLogCount < MAX_LOG_ENTRIES) eventLogCount++;
+}
+
 // =============================================================================
 // Setup - Inicializacion del hardware y conectividad
 // =============================================================================
@@ -184,6 +210,7 @@ void setup() {
 
   // 5. Crear canvas para double-buffering (usa PSRAM automaticamente)
   canvas.createSprite(SCREEN_WIDTH, SCREEN_HEIGHT);
+  memset(eventLog, 0, sizeof(eventLog));
 
 #ifdef DEBUG
   Serial.println("=================================");
@@ -194,6 +221,17 @@ void setup() {
   // 6. Cargar imagenes desde SD a PSRAM (antes del boot screen para mostrar splash)
   bool splashOk = cargarImagenSD("/splash.png", &splashData, &splashSize);
   bool splashSmallOk = cargarImagenSD("/splash_small.png", &splashSmallData, &splashSmallSize);
+
+  bool fotoWavOk = cargarImagenSD("/foto.wav", &fotoWavData, &fotoWavSize);
+#ifdef DEBUG
+  if (fotoWavOk) {
+    Serial.print("WAV obturador cargado: ");
+    Serial.print(fotoWavSize);
+    Serial.println(" bytes");
+  } else {
+    Serial.println("AVISO: No se pudo cargar foto.wav — se usara sin sonido");
+  }
+#endif
 
   if (!splashOk || !splashSmallOk) {
 #ifdef DEBUG
@@ -311,6 +349,7 @@ void loop() {
 
     if (info.encontrado) {
       mostrarNotificacion(info.nombre.c_str(), info.tipo.c_str(), NOMBRE_AULA, hora);
+      agregarEvento(info.nombre.c_str(), info.tipo.c_str(), hora);
       // Tono diferenciado segun tipo de deteccion
       if (info.tipo == "persona") {
         reproducirTonoPersona();
@@ -319,8 +358,14 @@ void loop() {
       }
     } else {
       mostrarEpcDesconocido(pendingEpc.c_str(), NOMBRE_AULA, hora);
+      agregarEvento(pendingEpc.c_str(), "desconocido", hora);
       reproducirTonoProducto();  // Mismo sonido para desconocido (decision locked)
     }
+
+    // Dibujar log de eventos y enviar todo a pantalla
+    dibujarLogEventos(eventLog, eventLogCount);
+    canvas.pushSprite(0, 0);
+
     appState = STATE_NOTIFICATION;
     notificationStart = millis();
   }
