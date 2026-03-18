@@ -11,14 +11,15 @@
 // =============================================================================
 
 // Estados de la maquina de estados MQTT
+// Prefijo MQTT_ST_ para evitar colision con macros de PubSubClient.h
 enum MqttState {
-  MQTT_CONNECTED,
-  MQTT_DISCONNECTED,
-  MQTT_WAITING_RETRY
+  MQTT_ST_CONNECTED,
+  MQTT_ST_DISCONNECTED,
+  MQTT_ST_WAITING_RETRY
 };
 
 // Variables de estado globales MQTT
-static MqttState mqttState = MQTT_DISCONNECTED;
+static MqttState mqttState = MQTT_ST_DISCONNECTED;
 static unsigned long lastReconnectAttempt = 0;
 static unsigned long reconnectInterval = 1000;  // Intervalo inicial: 1 segundo
 static const unsigned long MAX_RECONNECT_INTERVAL = 30000;  // Maximo: 30 segundos
@@ -138,11 +139,11 @@ bool attemptMqttConnect(PubSubClient& client) {
  */
 void mqttReconnectStateMachine(PubSubClient& client) {
   switch (mqttState) {
-    case MQTT_CONNECTED:
+    case MQTT_ST_CONNECTED:
       // Verificar si seguimos conectados
       if (!client.connected()) {
         // Perdimos la conexion, transicionar a DESCONECTADO
-        mqttState = MQTT_DISCONNECTED;
+        mqttState = MQTT_ST_DISCONNECTED;
         reconnectInterval = 1000;  // Resetear intervalo de reconexion
 #ifdef DEBUG
         Serial.println("MQTT desconectado - iniciando reconexion");
@@ -150,13 +151,13 @@ void mqttReconnectStateMachine(PubSubClient& client) {
       }
       break;
 
-    case MQTT_DISCONNECTED:
+    case MQTT_ST_DISCONNECTED:
       // Intentar conectar inmediatamente
       if (attemptMqttConnect(client)) {
-        mqttState = MQTT_CONNECTED;
+        mqttState = MQTT_ST_CONNECTED;
       } else {
         // Fallo de conexion - esperar antes de reintentar
-        mqttState = MQTT_WAITING_RETRY;
+        mqttState = MQTT_ST_WAITING_RETRY;
         lastReconnectAttempt = millis();
 #ifdef DEBUG
         Serial.print("Reconexion fallida - siguiente intento en ");
@@ -166,11 +167,11 @@ void mqttReconnectStateMachine(PubSubClient& client) {
       }
       break;
 
-    case MQTT_WAITING_RETRY:
+    case MQTT_ST_WAITING_RETRY:
       // Verificar si es tiempo de reintentar
       if (millis() - lastReconnectAttempt >= reconnectInterval) {
         if (attemptMqttConnect(client)) {
-          mqttState = MQTT_CONNECTED;
+          mqttState = MQTT_ST_CONNECTED;
         } else {
           // Backoff exponencial: duplicar intervalo hasta el maximo
           reconnectInterval = min(reconnectInterval * 2, MAX_RECONNECT_INTERVAL);

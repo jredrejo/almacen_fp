@@ -229,9 +229,9 @@ void setup() {
   setupMqtt(mqttClient);
   if (wifiOk) {
     if (attemptMqttConnect(mqttClient)) {
-      mqttState = MQTT_CONNECTED;
+      mqttState = MQTT_ST_CONNECTED;
     } else {
-      mqttState = MQTT_DISCONNECTED;
+      mqttState = MQTT_ST_DISCONNECTED;
     }
   }
 
@@ -292,7 +292,7 @@ void loop() {
   }
 
   // 3. Procesar mensajes MQTT si estamos conectados
-  if (mqttState == MQTT_CONNECTED) {
+  if (mqttState == MQTT_ST_CONNECTED) {
     mqttClient.loop();
   }
 
