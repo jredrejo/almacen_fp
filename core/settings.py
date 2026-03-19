@@ -25,7 +25,7 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "local")  # solo informativo
 
 # API key para autenticacion de dispositivos Tab5
-API_KEY = os.getenv("API_KEY", "")
+API_KEY = os.getenv("API_KEY", "TU_API_KEY")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/

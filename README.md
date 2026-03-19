@@ -102,6 +102,69 @@ uv run python manage.py runserver
 * [ESPAsyncWebServer](https://github.com/ESP32Async/ESPAsyncWebServer) (v3.9.2)
 * [ElegantOTA](https://github.com/ayushsharma82/ElegantOTA) (v3.1.7)
 
+## Compilación del firmware del M5Stack Tab5 (con PlatformIO)
+
+El firmware de la pantalla Tab5 se encuentra en `hardware/pantalla/` y usa PlatformIO con la plataforma pioarduino para el ESP32-P4.
+
+### Requisitos previos
+
+- [PlatformIO CLI](https://platformio.org/install/cli) instalado (`pipx install platformio`)
+- Cable USB-C conectado al Tab5
+- **Nota:** Si usas Python 3.12+ y ves errores de `click`/`esptool`, ejecuta:
+  ```bash
+  # Instalar version compatible de click en el entorno de PlatformIO
+  $(dirname $(which pio))/../lib/python*/site-packages/../../../bin/python -m pip install "click<8.2"
+  ```
+
+### Compilar el firmware
+
+```bash
+cd hardware/pantalla
+pio run -e tab5
+```
+
+La primera compilación descarga las dependencias automáticamente (M5Unified, M5GFX, PubSubClient, ArduinoJson, NTPClient, Timezone). Compilaciones posteriores son más rápidas.
+
+### Subir el firmware al Tab5
+
+1. Conecta el Tab5 por USB-C al ordenador
+2. Ejecuta:
+   ```bash
+   cd hardware/pantalla
+   pio run -e tab5 -t upload
+   ```
+3. PlatformIO detecta el puerto automáticamente. Si hay varios dispositivos, especifica el puerto:
+   ```bash
+   pio run -e tab5 -t upload --upload-port /dev/ttyACM0
+   ```
+
+### Subir archivos a la tarjeta SD
+
+El directorio `hardware/pantalla/data/` contiene los archivos que deben copiarse a la tarjeta SD del Tab5:
+
+- `splash.png` — Imagen de arranque
+- `splash_small.png` — Imagen para animación idle
+- `foto.wav` — Sonido de obturador de cámara
+
+Copia estos archivos manualmente a la raíz de la tarjeta microSD del Tab5.
+
+### Monitor serie
+
+Para ver los logs de depuración del Tab5:
+
+```bash
+cd hardware/pantalla
+pio device monitor
+```
+
+### Configuración WiFi y MQTT
+
+Antes de compilar, edita `hardware/pantalla/include/config.h` con los datos de tu red:
+
+- `WIFI_SSID` y `WIFI_PASSWORD` — Credenciales WiFi
+- `MQTT_SERVER` — IP del broker MQTT
+- `API_BASE_URL` — URL base de la API Django (ej: `http://192.168.1.100:8000`)
+- `AULA_ID` — ID del aula asignada al Tab5
 
 ## 🔧 Configuración de Servicios Externos
 

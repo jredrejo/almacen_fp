@@ -12,7 +12,14 @@
 #include <WiFiUdp.h>
 #include <NTPClient.h>
 #include <Timezone.h>
+#include <SPI.h>
 #include <SD.h>
+
+// --- Pines SPI de la tarjeta SD del Tab5 ---
+#define SD_SPI_CS_PIN   42
+#define SD_SPI_SCK_PIN  43
+#define SD_SPI_MOSI_PIN 44
+#define SD_SPI_MISO_PIN 39
 
 #include "config.h"
 #include "wifi_manager.h"
@@ -218,7 +225,21 @@ void setup() {
   Serial.println("=================================");
 #endif
 
-  // 6. Cargar imagenes desde SD a PSRAM (antes del boot screen para mostrar splash)
+  // 6. Inicializar tarjeta SD via SPI (pines del Tab5)
+  SPI.begin(SD_SPI_SCK_PIN, SD_SPI_MISO_PIN, SD_SPI_MOSI_PIN, SD_SPI_CS_PIN);
+  if (!SD.begin(SD_SPI_CS_PIN, SPI, 40000000)) {
+#ifdef DEBUG
+    Serial.println("ERROR: No se detecto tarjeta SD");
+#endif
+  } else {
+#ifdef DEBUG
+    Serial.print("Tarjeta SD inicializada: ");
+    Serial.print(SD.cardSize() / (1024 * 1024));
+    Serial.println(" MB");
+#endif
+  }
+
+  // 7. Cargar imagenes desde SD a PSRAM (antes del boot screen para mostrar splash)
   bool splashOk = cargarImagenSD("/splash.png", &splashData, &splashSize);
   bool splashSmallOk = cargarImagenSD("/splash_small.png", &splashSmallData, &splashSmallSize);
 
@@ -240,7 +261,7 @@ void setup() {
 #endif
   }
 
-  // 7. Boot screen progresivo: WiFi
+  // 8. Boot screen progresivo: WiFi
   mostrarPantallaBoot(splashData, splashSize, "Conectando WiFi...");
   bool wifiOk = setupWifi();
   if (!wifiOk) {
@@ -249,7 +270,7 @@ void setup() {
 #endif
   }
 
-  // 8. Inicializar NTP y sincronizar hora
+  // 9. Inicializar NTP y sincronizar hora
   timeClient.begin();
   if (wifiOk) {
     timeClient.update();
@@ -262,7 +283,7 @@ void setup() {
 #endif
   }
 
-  // 9. Boot screen progresivo: MQTT
+  // 10. Boot screen progresivo: MQTT
   mostrarPantallaBoot(splashData, splashSize, "Conectando MQTT...");
   setupMqtt(mqttClient);
   if (wifiOk) {
@@ -273,11 +294,11 @@ void setup() {
     }
   }
 
-  // 10. Boot screen progresivo: Listo
+  // 11. Boot screen progresivo: Listo
   mostrarPantallaBoot(splashData, splashSize, "Listo");
   delay(1000);  // Mostrar "Listo" brevemente
 
-  // 11. Transicionar a estado IDLE e iniciar animacion
+  // 12. Transicionar a estado IDLE e iniciar animacion
   iniciarAnimacionIdle();
   appState = STATE_IDLE;
 
