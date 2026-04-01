@@ -1,9 +1,0 @@
-.git
-.gitignore
-uploader
-venv
-__pycache__
-*.pyc
-*.swp
-.DS_Store
-*.md
