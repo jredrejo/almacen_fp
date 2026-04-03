@@ -28,6 +28,10 @@
 #include "display_manager.h"
 #include "sound_manager.h"
 
+#ifdef CAMERA_ENABLED
+#include "camera_manager.h"
+#endif
+
 // --- Clientes de red ---
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
@@ -198,6 +202,18 @@ void agregarEvento(const char* nombre, const char* tipo, const char* hora) {
   if (eventLogCount < MAX_LOG_ENTRIES) eventLogCount++;
 }
 
+#ifdef CAMERA_ENABLED
+/**
+ * Tarea FreeRTOS para capturar y guardar foto en segundo plano.
+ * Se crea al recibir evento RFID y se autodestruye al terminar.
+ * No bloquea el loop principal ni la visualizacion de notificacion (D-05).
+ */
+void tareaCapturarFoto(void* param) {
+  capturarYGuardarFoto();
+  vTaskDelete(NULL);
+}
+#endif
+
 // =============================================================================
 // Setup - Inicializacion del hardware y conectividad
 // =============================================================================
@@ -261,7 +277,13 @@ void setup() {
 #endif
   }
 
-  // 8. Boot screen progresivo: WiFi
+  // 8. Boot screen progresivo: Camara (si esta habilitada)
+#ifdef CAMERA_ENABLED
+  mostrarPantallaBoot(splashData, splashSize, "Iniciando camara...");
+  inicializarCamara();
+#endif
+
+  // 9. Boot screen progresivo: WiFi
   mostrarPantallaBoot(splashData, splashSize, "Conectando WiFi...");
   bool wifiOk = setupWifi();
   if (!wifiOk) {
@@ -270,7 +292,7 @@ void setup() {
 #endif
   }
 
-  // 9. Inicializar NTP y sincronizar hora
+  // 10. Inicializar NTP y sincronizar hora
   timeClient.begin();
   if (wifiOk) {
     timeClient.update();
@@ -283,7 +305,7 @@ void setup() {
 #endif
   }
 
-  // 10. Boot screen progresivo: MQTT
+  // 11. Boot screen progresivo: MQTT
   mostrarPantallaBoot(splashData, splashSize, "Conectando MQTT...");
   setupMqtt(mqttClient);
   if (wifiOk) {
@@ -294,11 +316,11 @@ void setup() {
     }
   }
 
-  // 11. Boot screen progresivo: Listo
+  // 12. Boot screen progresivo: Listo
   mostrarPantallaBoot(splashData, splashSize, "Listo");
   delay(1000);  // Mostrar "Listo" brevemente
 
-  // 12. Transicionar a estado IDLE e iniciar animacion
+  // 13. Transicionar a estado IDLE e iniciar animacion
   iniciarAnimacionIdle();
   appState = STATE_IDLE;
 
@@ -362,6 +384,14 @@ void loop() {
     Serial.println(pendingEpc);
 #endif
     hasPendingEpc = false;
+
+#ifdef CAMERA_ENABLED
+    // Disparar captura de foto en tarea separada ANTES de consultar API (D-04)
+    // La persona/producto esta frente al lector en este momento
+    if (camaraInicializada) {
+      xTaskCreate(tareaCapturarFoto, "foto", 8192, NULL, 1, NULL);
+    }
+#endif
 
     // Resolver EPC via API HTTP
     EpcInfo info = resolverEpc(pendingEpc);

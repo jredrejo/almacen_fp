@@ -10,6 +10,11 @@
 #include <M5GFX.h>
 #include <M5Unified.h>
 
+#ifdef CAMERA_ENABLED
+// Forward declaration para evitar include circular
+extern bool hayErrorSD();
+#endif
+
 // --- Canvas para double-buffering (se crea en main.cpp) ---
 extern M5Canvas canvas;
 
@@ -75,6 +80,17 @@ inline void dibujarBarraEstado(const char* nombreAula, const char* horaLocal) {
   // Nombre del aula a la izquierda
   canvas.setTextDatum(middle_left);
   canvas.drawString(nombreAula, 20, STATUS_BAR_Y + STATUS_BAR_HEIGHT / 2);
+
+#ifdef CAMERA_ENABLED
+  // Indicador de error SD: circulo rojo con "SD!" si hay error de escritura
+  if (hayErrorSD()) {
+    canvas.fillCircle(SCREEN_WIDTH / 2, STATUS_BAR_Y + STATUS_BAR_HEIGHT / 2, 20, TFT_RED);
+    canvas.setTextColor(TFT_WHITE);
+    canvas.setTextSize(2);
+    canvas.setTextDatum(middle_center);
+    canvas.drawString("SD!", SCREEN_WIDTH / 2, STATUS_BAR_Y + STATUS_BAR_HEIGHT / 2);
+  }
+#endif
 
   // Reloj a la derecha
   canvas.setTextDatum(middle_right);
