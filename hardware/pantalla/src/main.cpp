@@ -32,6 +32,20 @@
 #include "camera_manager.h"
 #endif
 
+// --- Colas FreeRTOS para pipeline EPC ---
+// epcQueue: MQTT callback -> worker task (declared extern in mqtt_manager.h)
+QueueHandle_t epcQueue = nullptr;
+
+// Resultado del worker task para consumo thread-safe en loop()
+struct EpcResult {
+  char nombre[64];
+  char tipo[16];
+  char epc[64];    // For unknown EPCs
+  char hora[6];
+  bool encontrado;
+};
+static QueueHandle_t resultQueue = nullptr;
+
 // --- Clientes de red ---
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
@@ -78,7 +92,8 @@ int idleX = 0, idleY = 0;                     // Posicion actual de splash_small
 int idleDx = 3, idleDy = 2;                   // Velocidad en pixeles por frame (diagonal no repetitiva)
 const int IMG_SIZE = 256;                       // splash_small.png es 256x256
 unsigned long lastFrameTime = 0;
-const unsigned long FRAME_INTERVAL = 16;        // ~60fps
+const unsigned long FRAME_INTERVAL = 33;        // ~30fps (per D-04)
+int prevIdleX = -1, prevIdleY = -1;  // Previous position for dirty-flag check
 
 // --- Buffer circular de ultimos eventos RFID para log ---
 LogEntry eventLog[MAX_LOG_ENTRIES];
@@ -147,6 +162,8 @@ void obtenerHoraLocal(char* buffer, size_t bufferSize) {
 void iniciarAnimacionIdle() {
   idleX = random(0, SCREEN_WIDTH - IMG_SIZE);
   idleY = random(0, SCREEN_HEIGHT - IMG_SIZE);
+  prevIdleX = -1;
+  prevIdleY = -1;
 }
 
 /**
@@ -173,6 +190,11 @@ void actualizarAnimacionIdle() {
     idleDy = -idleDy;
     idleY = constrain(idleY, 0, SCREEN_HEIGHT - IMG_SIZE);
   }
+
+  // Skip redraw if position unchanged (per D-05)
+  if (idleX == prevIdleX && idleY == prevIdleY) return;
+  prevIdleX = idleX;
+  prevIdleY = idleY;
 
   // Dibujar en canvas (double-buffering sin flicker)
   canvas.fillScreen(TFT_BLACK);
@@ -213,6 +235,72 @@ void tareaCapturarFoto(void* param) {
   vTaskDelete(NULL);
 }
 #endif
+
+/**
+ * Tarea FreeRTOS worker para procesar EPCs: desencolear, resolver via HTTP, encolar resultado.
+ * Corre permanentemente. Elimina bloqueo HTTP de 3s del loop principal.
+ *
+ * THREAD SAFETY: This task does HTTP + sound only. Display updates and
+ * appState transitions happen in loop() via resultQueue to avoid data
+ * races on appState/notificationStart and canvas (per BLOCKER 2 fix).
+ */
+void tareaResolverEpc(void* param) {
+  EpcJob job;
+  for (;;) {
+    // Block waiting for next EPC job (portMAX_DELAY = wait forever)
+    if (xQueueReceive(epcQueue, &job, portMAX_DELAY) == pdTRUE) {
+#ifdef DEBUG
+      Serial.print("Worker: procesando EPC ");
+      Serial.println(job.epc);
+#endif
+
+#ifdef CAMERA_ENABLED
+      // Disparar captura de foto ANTES de consultar API (per D-04)
+      if (camaraInicializada) {
+        xTaskCreate(tareaCapturarFoto, "foto", 8192, NULL, 1, NULL);
+      }
+#endif
+
+      // Check cache first
+      String epcStr(job.epc);
+      EpcInfo info;
+      EpcCacheEntry* cached = buscarEnCache(job.epc);
+      if (cached) {
+        info = cached->info;
+#ifdef DEBUG
+        Serial.println("Worker: EPC resuelto desde cache");
+#endif
+      } else {
+        info = resolverEpc(epcStr);
+        guardarEnCache(job.epc, info);
+      }
+
+      // Play sound from worker (sound is thread-safe, uses its own I2S)
+      if (info.encontrado) {
+        if (info.tipo == "persona") {
+          reproducirTonoPersona();
+        } else {
+          reproducirTonoProducto();
+        }
+      } else {
+        reproducirTonoProducto();
+      }
+
+      // Build result and send to loop() for display + state update
+      EpcResult result;
+      strncpy(result.nombre, info.nombre.c_str(), sizeof(result.nombre) - 1);
+      result.nombre[sizeof(result.nombre) - 1] = '\0';
+      strncpy(result.tipo, info.tipo.c_str(), sizeof(result.tipo) - 1);
+      result.tipo[sizeof(result.tipo) - 1] = '\0';
+      strncpy(result.epc, job.epc, sizeof(result.epc) - 1);
+      result.epc[sizeof(result.epc) - 1] = '\0';
+      obtenerHoraLocal(result.hora, sizeof(result.hora));
+      result.encontrado = info.encontrado;
+
+      xQueueSend(resultQueue, &result, portMAX_DELAY);
+    }
+  }
+}
 
 // =============================================================================
 // Setup - Inicializacion del hardware y conectividad
@@ -277,13 +365,8 @@ void setup() {
 #endif
   }
 
-  // 8. Boot screen progresivo: Camara (si esta habilitada)
-#ifdef CAMERA_ENABLED
-  mostrarPantallaBoot(splashData, splashSize, "Iniciando camara...");
-  inicializarCamara();
-#endif
-
-  // 9. Boot screen progresivo: WiFi
+  // 8. Boot screen progresivo: WiFi (antes de camara — SDIO necesita RAM interna
+  //    que V4L2 mmap reclamara para los buffers de video)
   mostrarPantallaBoot(splashData, splashSize, "Conectando WiFi...");
   bool wifiOk = setupWifi();
   if (!wifiOk) {
@@ -292,7 +375,7 @@ void setup() {
 #endif
   }
 
-  // 10. Inicializar NTP y sincronizar hora
+  // 9. Inicializar NTP y sincronizar hora
   timeClient.begin();
   if (wifiOk) {
     timeClient.update();
@@ -305,7 +388,11 @@ void setup() {
 #endif
   }
 
-  // 11. Boot screen progresivo: MQTT
+  // 9.5. Crear colas FreeRTOS para pipeline EPC
+  epcQueue = xQueueCreate(8, sizeof(EpcJob));
+  resultQueue = xQueueCreate(4, sizeof(EpcResult));
+
+  // 10. Boot screen progresivo: MQTT
   mostrarPantallaBoot(splashData, splashSize, "Conectando MQTT...");
   setupMqtt(mqttClient);
   if (wifiOk) {
@@ -315,6 +402,16 @@ void setup() {
       mqttState = MQTT_ST_DISCONNECTED;
     }
   }
+
+  // 11. Boot screen progresivo: Camara (despues de WiFi/MQTT — V4L2 mmap consume
+  //     RAM interna DMA que no debe competir con las colas SDIO de WiFi)
+#ifdef CAMERA_ENABLED
+  mostrarPantallaBoot(splashData, splashSize, "Iniciando camara...");
+  inicializarCamara();
+#endif
+
+  // 11.5. Crear tarea worker para procesamiento EPC (off main loop, per D-09)
+  xTaskCreate(tareaResolverEpc, "epcWorker", 8192, NULL, 2, NULL);
 
   // 12. Boot screen progresivo: Listo
   mostrarPantallaBoot(splashData, splashSize, "Listo");
@@ -377,43 +474,16 @@ void loop() {
     mqttClient.loop();
   }
 
-  // 4. Procesar EPC pendiente del callback MQTT
-  if (hasPendingEpc) {
-#ifdef DEBUG
-    Serial.print("EPC recibido: ");
-    Serial.println(pendingEpc);
-#endif
-    hasPendingEpc = false;
-
-#ifdef CAMERA_ENABLED
-    // Disparar captura de foto en tarea separada ANTES de consultar API (D-04)
-    // La persona/producto esta frente al lector en este momento
-    if (camaraInicializada) {
-      xTaskCreate(tareaCapturarFoto, "foto", 8192, NULL, 1, NULL);
-    }
-#endif
-
-    // Resolver EPC via API HTTP
-    EpcInfo info = resolverEpc(pendingEpc);
-    char hora[6];
-    obtenerHoraLocal(hora, sizeof(hora));
-
-    if (info.encontrado) {
-      mostrarNotificacion(info.nombre.c_str(), info.tipo.c_str(), NOMBRE_AULA, hora);
-      agregarEvento(info.nombre.c_str(), info.tipo.c_str(), hora);
-      // Tono diferenciado segun tipo de deteccion
-      if (info.tipo == "persona") {
-        reproducirTonoPersona();
-      } else {
-        reproducirTonoProducto();
-      }
+  // 4. Procesar resultados del worker EPC (thread-safe: display + state en loop context)
+  EpcResult epcResult;
+  if (xQueueReceive(resultQueue, &epcResult, 0) == pdTRUE) {
+    if (epcResult.encontrado) {
+      mostrarNotificacion(epcResult.nombre, epcResult.tipo, NOMBRE_AULA, epcResult.hora);
+      agregarEvento(epcResult.nombre, epcResult.tipo, epcResult.hora);
     } else {
-      mostrarEpcDesconocido(pendingEpc.c_str(), NOMBRE_AULA, hora);
-      agregarEvento(pendingEpc.c_str(), "desconocido", hora);
-      reproducirTonoProducto();  // Mismo sonido para desconocido (decision locked)
+      mostrarEpcDesconocido(epcResult.epc, NOMBRE_AULA, epcResult.hora);
+      agregarEvento(epcResult.epc, "desconocido", epcResult.hora);
     }
-
-    // Dibujar log de eventos y enviar todo a pantalla
     dibujarLogEventos(eventLog, eventLogCount);
     canvas.pushSprite(0, 0);
 

@@ -128,9 +128,10 @@ La primera compilación descarga las dependencias automáticamente (M5Unified, M
 ### Subir el firmware al Tab5
 
 1. Conecta el Tab5 por USB-C al ordenador
-2. Ejecuta:
+2. Comprueba qeu hardware/pantalla/includes/config.h contiene tus credenciales e ips. Ejecuta:
    ```bash
    cd hardware/pantalla
+   pio run --target clean
    pio run -e tab5 -t upload
    ```
 3. PlatformIO detecta el puerto automáticamente. Si hay varios dispositivos, especifica el puerto:
@@ -273,7 +274,8 @@ uv run pytest tests/
 sudo journalctl -u mqtt-listener -f
 
 # Publicar EPC de prueba
-mosquitto_pub -h localhost -t "rfid/3/epc" -m '{"epc": "TEST123456", "aula_id": "3"}'
+mosquitto_pub -h localhost -u usuario -P password -t "rfid/pantalla/1" -m '{"epc": "TEST123456", "aula_id": "1"}'
+
 ```
 
 ### Estrategia de Testing

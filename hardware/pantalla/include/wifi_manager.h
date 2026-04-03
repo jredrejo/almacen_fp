@@ -2,6 +2,7 @@
 #define WIFI_MANAGER_H
 
 #include <WiFi.h>
+#include <TimeLib.h>
 #include "config.h"
 
 // Declaracion externa del cliente NTP para re-sincronizar tras reconexion
@@ -117,6 +118,7 @@ bool wifiReconnectCheck() {
 #endif
         // Re-sincronizar NTP tras reconexion exitosa
         timeClient.forceUpdate();
+        setTime(timeClient.getEpochTime());
       } else if (millis() - lastWifiReconnectAttempt >= wifiReconnectInterval) {
         // Timeout: reintentar con backoff exponencial
         WiFi.begin(WIFI_SSID, WIFI_PASSWORD);

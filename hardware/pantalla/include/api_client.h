@@ -17,6 +17,56 @@ struct EpcInfo {
   bool encontrado;   // true si la API devolvio 200 con datos validos
 };
 
+// --- Cache de EPCs resueltos recientemente ---
+static constexpr int EPC_CACHE_SIZE = 8;
+static constexpr unsigned long EPC_CACHE_TTL = 30000;  // 30 seconds TTL
+
+struct EpcCacheEntry {
+  char epc[64];
+  EpcInfo info;
+  unsigned long timestamp;
+  bool valid;
+};
+
+static EpcCacheEntry epcCache[EPC_CACHE_SIZE] = {};
+
+/**
+ * Busca un EPC en la cache. Retorna puntero a la entrada si encontrado y no expirado, nullptr si no.
+ */
+inline EpcCacheEntry* buscarEnCache(const char* epc) {
+  unsigned long ahora = millis();
+  for (int i = 0; i < EPC_CACHE_SIZE; i++) {
+    if (epcCache[i].valid && strcmp(epcCache[i].epc, epc) == 0) {
+      if (ahora - epcCache[i].timestamp < EPC_CACHE_TTL) {
+        return &epcCache[i];
+      }
+      epcCache[i].valid = false;  // Expired
+    }
+  }
+  return nullptr;
+}
+
+/**
+ * Guarda un resultado de resolucion EPC en la cache (reemplaza la entrada mas antigua).
+ */
+inline void guardarEnCache(const char* epc, const EpcInfo& info) {
+  // Find oldest or invalid slot
+  int oldest = 0;
+  unsigned long oldestTime = ULONG_MAX;
+  for (int i = 0; i < EPC_CACHE_SIZE; i++) {
+    if (!epcCache[i].valid) { oldest = i; break; }
+    if (epcCache[i].timestamp < oldestTime) {
+      oldestTime = epcCache[i].timestamp;
+      oldest = i;
+    }
+  }
+  strncpy(epcCache[oldest].epc, epc, sizeof(epcCache[oldest].epc) - 1);
+  epcCache[oldest].epc[sizeof(epcCache[oldest].epc) - 1] = '\0';
+  epcCache[oldest].info = info;
+  epcCache[oldest].timestamp = millis();
+  epcCache[oldest].valid = true;
+}
+
 /**
  * Resuelve un EPC consultando la API Django.
  * Hace GET a /api/epc/{epc}/ con autenticacion ApiKey.

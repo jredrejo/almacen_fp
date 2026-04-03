@@ -4,6 +4,8 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include "config.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 
 // =============================================================================
 // Modulo MQTT con maquina de estados para reconexion no bloqueante
@@ -24,14 +26,19 @@ static unsigned long lastReconnectAttempt = 0;
 static unsigned long reconnectInterval = 1000;  // Intervalo inicial: 1 segundo
 static const unsigned long MAX_RECONNECT_INTERVAL = 30000;  // Maximo: 30 segundos
 
-// Cola simple de EPCs pendientes (un solo EPC a la vez)
-// El callback MQTT guarda aqui el EPC; el loop() lo procesa fuera del callback
-static String pendingEpc = "";
-static bool hasPendingEpc = false;
+// Estructura para jobs de EPC en la cola
+struct EpcJob {
+  char epc[64];  // EPC hex string (max 24 chars typical, 64 safe)
+};
+
+// Cola FreeRTOS de EPCs pendientes (capacidad 8 — sufficient for burst reads)
+// IMPORTANT: declared extern here, defined in main.cpp (per BLOCKER 3 fix).
+// static would give each translation unit its own copy — a silent failure.
+extern QueueHandle_t epcQueue;
 
 /**
  * Callback MQTT: se ejecuta al recibir un mensaje en un topic suscrito.
- * Parsea el JSON y extrae el campo "epc", guardandolo en pendingEpc.
+ * Parsea el JSON y extrae el campo "epc", encolandolo para procesamiento async.
  * NO hace HTTP ni operaciones bloqueantes dentro del callback.
  */
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
@@ -47,14 +54,23 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     return;
   }
 
-  // Extraer campo "epc" del mensaje
+  // Extraer campo "epc" del mensaje y encolar
   const char* epc = doc["epc"];
-  if (epc) {
-    pendingEpc = String(epc);
-    hasPendingEpc = true;
+  if (epc && epcQueue != nullptr) {
+    EpcJob job;
+    strncpy(job.epc, epc, sizeof(job.epc) - 1);
+    job.epc[sizeof(job.epc) - 1] = '\0';
+    // Non-blocking enqueue (MQTT callback runs in loop task context)
+    if (xQueueSend(epcQueue, &job, 0) != pdTRUE) {
 #ifdef DEBUG
-    Serial.print("MQTT - EPC recibido en callback: ");
-    Serial.println(epc);
+      Serial.println("AVISO: Cola EPC llena, descartando evento");
+#endif
+    }
+#ifdef DEBUG
+    else {
+      Serial.print("MQTT - EPC encolado: ");
+      Serial.println(epc);
+    }
 #endif
   }
 }
@@ -68,6 +84,8 @@ void setupMqtt(PubSubClient& client) {
   client.setServer(MQTT_SERVER, MQTT_PORT);
   client.setBufferSize(512);  // Buffer mayor para payloads JSON
   client.setCallback(mqttCallback);
+  client.setSocketTimeout(10);    // 10 seconds socket timeout (per D-11)
+  client.setKeepAlive(15);        // 15 seconds keepalive (per D-11)
 
 #ifdef DEBUG
   Serial.print("MQTT configurado - Servidor: ");

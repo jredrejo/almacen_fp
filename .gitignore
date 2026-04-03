@@ -184,3 +184,8 @@ hardware/pantalla/uploader/checksum_db.txt
 .beads/
 .vscode/
 .planning/
+hardware/pantalla/.pio/
+hardware/pantalla/.dummy/
+hardware/pantalla/managed_components/
+
+.gitnexus

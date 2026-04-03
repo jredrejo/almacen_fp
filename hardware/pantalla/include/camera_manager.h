@@ -15,6 +15,9 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include "sys/mman.h"
+#ifndef MAP_FAILED
+#define MAP_FAILED ((void*)-1)
+#endif
 #include "linux/videodev2.h"
 #include "esp_video_device.h"
 #include "esp_video_isp_ioctl.h"
@@ -24,6 +27,7 @@
 #include "driver/jpeg_encode.h"
 #include "esp_clock_output.h"
 #include "driver/i2c_master.h"
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
@@ -46,6 +50,7 @@ static constexpr int CAM_SCCB_SCL = 32;                     // I2C SCL para cont
 static bool camaraInicializada = false;     // true si la camara se inicio correctamente
 static bool errorSD = false;                // Flag para indicador visual en display (D-10)
 static SemaphoreHandle_t sdMutex = nullptr; // Mutex para acceso SD thread-safe
+static SemaphoreHandle_t cameraMutex = nullptr;  // Mutex para pipeline de captura completo
 static jpeg_encoder_handle_t jpegEncoder = nullptr;  // Handle del codificador JPEG HW
 
 // --- Handle I2C para SCCB del sensor ---
@@ -281,7 +286,7 @@ inline bool iniciarVideoV4L2() {
 #endif
 
   // 2. Abrir dispositivo V4L2 MIPI-CSI
-  videoFd = open(ESP_VIDEO_MIPI_CSI_DEVICE_NAME, O_RDONLY);
+  videoFd = open(ESP_VIDEO_MIPI_CSI_DEVICE_NAME, O_RDWR);
   if (videoFd < 0) {
 #ifdef DEBUG
     Serial.println("Error: no se pudo abrir " ESP_VIDEO_MIPI_CSI_DEVICE_NAME);
@@ -404,7 +409,8 @@ inline bool iniciarVideoV4L2() {
                                      videoFd, buf.m.offset);
     v4l2BufLengths[i] = buf.length;
 
-    if (v4l2Buffers[i] == nullptr) {
+    if (v4l2Buffers[i] == (uint8_t*)MAP_FAILED) {
+      v4l2Buffers[i] = nullptr;  // Limpiar para downstream que checks nullptr
 #ifdef DEBUG
       Serial.print("Error: mmap buffer[");
       Serial.print(i);
@@ -461,6 +467,13 @@ inline bool iniciarVideoV4L2() {
       Serial.println("ISP pipeline controller iniciado (AE/AWB/AGC/gamma/CCM/sharpen)");
     }
 #endif
+    // Silenciar NACK esperados: la IPA escribe gain/exposicion al sensor via SCCB
+    // mientras el sensor esta en readout, produciendo NACKs esporadicos inofensivos
+    esp_log_level_set("i2c.master", ESP_LOG_NONE);
+    esp_log_level_set("sccb_i2c", ESP_LOG_NONE);
+    esp_log_level_set("esp_video_sensor", ESP_LOG_NONE);
+    esp_log_level_set("esp_video", ESP_LOG_NONE);
+    esp_log_level_set("ISP", ESP_LOG_NONE);
   }
 
   // Warmup: ciclar frames para que la IPA converja (AE/AWB necesitan ~20 frames)
@@ -504,6 +517,15 @@ inline void inicializarCamara() {
   if (sdMutex == nullptr) {
 #ifdef DEBUG
     Serial.println("Error: No se pudo crear mutex SD");
+#endif
+    return;
+  }
+
+  // Crear mutex de camara para proteger pipeline V4L2+JPEG contra concurrencia (per D-06)
+  cameraMutex = xSemaphoreCreateMutex();
+  if (cameraMutex == nullptr) {
+#ifdef DEBUG
+    Serial.println("Error: No se pudo crear mutex de camara");
 #endif
     return;
   }
@@ -610,11 +632,22 @@ inline void capturarYGuardarFoto() {
   // Si la camara no se inicializo, salir silenciosamente
   if (!camaraInicializada || videoFd < 0) return;
 
+  // Tomar mutex de camara para proteger pipeline V4L2+JPEG contra concurrencia (per D-06)
+  if (xSemaphoreTake(cameraMutex, pdMS_TO_TICKS(5000)) != pdTRUE) {
+#ifdef DEBUG
+    Serial.println("Aviso: Otra captura en curso, descartando esta");
+#endif
+    return;
+  }
+
   // 1. Drenar buffers viejos y ciclar frames frescos para que la IPA
   //    re-ajuste exposicion (los buffers pueden tener frames antiguos
   //    capturados la ultima vez que hubo buffers libres).
+  // Drenar solo los buffers pre-encolados para obtener frame fresco
+  // La IPA ya convergio durante streaming continuo (per D-07)
+  static constexpr int WARMUP_FRAMES = 2;
   struct v4l2_buffer v4l2Buf = {};
-  for (int i = 0; i < V4L2_NUM_BUFS + 8; i++) {
+  for (int i = 0; i < WARMUP_FRAMES; i++) {
     memset(&v4l2Buf, 0, sizeof(v4l2Buf));
     v4l2Buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     v4l2Buf.memory = V4L2_MEMORY_MMAP;
@@ -622,9 +655,10 @@ inline void capturarYGuardarFoto() {
 #ifdef DEBUG
       Serial.println("Error: VIDIOC_DQBUF fallo");
 #endif
+      xSemaphoreGive(cameraMutex);
       return;
     }
-    if (i < V4L2_NUM_BUFS + 7) {
+    if (i < WARMUP_FRAMES - 1) {
       ioctl(videoFd, VIDIOC_QBUF, &v4l2Buf);
     }
   }
@@ -687,8 +721,12 @@ inline void capturarYGuardarFoto() {
     Serial.print("Error: codificacion JPEG fallo: 0x");
     Serial.println(err, HEX);
 #endif
+    xSemaphoreGive(cameraMutex);
     return;
   }
+
+  // Liberar mutex de camara: pipeline V4L2+JPEG completo, SD tiene su propio mutex
+  xSemaphoreGive(cameraMutex);
 
 #ifdef DEBUG
   Serial.print("JPEG codificado: ");
