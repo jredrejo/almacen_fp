@@ -139,7 +139,7 @@ void loop() {
   // Maquina de estados para reconexion MQTT no bloqueante
   mqttReconnectStateMachine();
 
-  if (mqttState == MQTT_CONNECTED) {
+  if (mqttState == MS_CONNECTED) {
     client.loop();
 
     // Limpiamos el buffer periódicamente

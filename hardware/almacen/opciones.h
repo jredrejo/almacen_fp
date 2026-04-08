@@ -20,3 +20,11 @@ const char* version_almacen="0.1.0";
 const char* DEVICE_ID = "almacen-aula1";  // device_id: role + aula
 const char* ROLE      = "reader";
 const char* VERSION   = "1.1.0";
+
+// MQTT reconnect state machine (used in loop + conexionMQTT)
+enum MqttState {
+  MS_CONNECTED,
+  MS_DISCONNECTED,
+  MS_WAITING_RETRY
+};
+extern MqttState mqttState;

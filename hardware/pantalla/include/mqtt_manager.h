@@ -98,16 +98,16 @@ void setupMqtt(PubSubClient& client) {
 /**
  * Intenta conectar al broker MQTT con LWT (Last Will and Testament).
  * Publica mensaje online con retain=true al conectar.
- * Se suscribe al topic rfid/pantalla/{aula_id} con QoS 1.
+ * Se suscribe al topic rfid/lectura/{aula_id} con QoS 1.
  * @param client Referencia al cliente PubSubClient
  * @return true si la conexion fue exitosa, false en caso contrario
  */
 bool attemptMqttConnect(PubSubClient& client) {
-  // Construir payload LWT para cuando el dispositivo se desconecte
-  char lwt[128];
+  // Construir payload LWT para cuando el dispositivo se desconecte (D-08)
+  char lwt[192];
   snprintf(lwt, sizeof(lwt),
-           "{\"client_id\":\"%s\",\"aula_id\":\"%s\",\"status\":\"offline\"}",
-           CLIENT_ID, AULA_ID);
+           "{\"device_id\":\"%s\",\"role\":\"%s\",\"aula_id\":\"%s\",\"status\":\"offline\"}",
+           DEVICE_ID, DEVICE_ROLE, AULA_ID);
 
 #ifdef DEBUG
   Serial.println("Intentando conectar MQTT con LWT...");
@@ -116,28 +116,30 @@ bool attemptMqttConnect(PubSubClient& client) {
   // Conectar con LWT: topic, QoS=1, retain=true
   bool connected = false;
   if (strlen(MQTT_USER) > 0) {
-    connected = client.connect(CLIENT_ID, MQTT_USER, MQTT_PASSWORD,
+    connected = client.connect(DEVICE_ID, MQTT_USER, MQTT_PASSWORD,
                                "rfid/sistema", 1, true, lwt);
   } else {
-    connected = client.connect(CLIENT_ID, "rfid/sistema", 1, true, lwt);
+    connected = client.connect(DEVICE_ID, "rfid/sistema", 1, true, lwt);
   }
 
   if (connected) {
-    // Publicar mensaje online con retain=true
+    // Publicar mensaje online con retain=true (D-08)
     char onlineMsg[256];
     snprintf(onlineMsg, sizeof(onlineMsg),
-             "{\"client_id\":\"%s\",\"aula_id\":\"%s\",\"status\":\"online\",\"ip\":\"%s\"}",
-             CLIENT_ID, AULA_ID, WiFi.localIP().toString().c_str());
+             "{\"device_id\":\"%s\",\"role\":\"%s\",\"aula_id\":\"%s\","
+             "\"status\":\"online\",\"ip\":\"%s\",\"version\":\"%s\"}",
+             DEVICE_ID, DEVICE_ROLE, AULA_ID,
+             WiFi.localIP().toString().c_str(), DEVICE_VERSION);
 
     client.publish("rfid/sistema", onlineMsg, true);
 
-    // Suscribirse al topic de pantalla con QoS 1
-    client.subscribe(MQTT_TOPIC_PANTALLA, 1);
+    // Suscribirse al topic canonico de lecturas con QoS 1 (D-04 subscribe side)
+    client.subscribe(MQTT_TOPIC_LECTURA, 1);
 
 #ifdef DEBUG
     Serial.println("MQTT conectado exitosamente");
     Serial.print("Suscrito a: ");
-    Serial.println(MQTT_TOPIC_PANTALLA);
+    Serial.println(MQTT_TOPIC_LECTURA);
 #endif
     return true;
   } else {

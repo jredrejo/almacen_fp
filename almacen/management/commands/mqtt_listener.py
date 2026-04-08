@@ -1,8 +1,9 @@
 import json
 import logging
 import os
-from collections import defaultdict
-from datetime import datetime, timedelta
+import re
+from collections import Counter, defaultdict
+from datetime import datetime, timedelta, timezone as dt_timezone
 from logging.handlers import RotatingFileHandler
 
 import paho.mqtt.client as mqtt
@@ -313,6 +314,51 @@ class BatchProcessor:
                     )
 
 
+# --- Payload Validation (pure functions, no Django, no side effects) ---
+
+EPC_RE = re.compile(r"^[0-9A-F]{8,24}$")
+TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+
+
+def validate_epc(epc):
+    """Returns (ok, reason). Reason is 'epc_format' or None."""
+    if not isinstance(epc, str) or not EPC_RE.match(epc):
+        return False, "epc_format"
+    return True, None
+
+
+def validate_timestamp(ts_str):
+    """Returns (ok, value). Value is a tz-aware UTC datetime on success, 'ts_format' on failure."""
+    if not isinstance(ts_str, str) or not TS_RE.match(ts_str):
+        return False, "ts_format"
+    try:
+        dt = datetime.strptime(ts_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt_timezone.utc)
+    except ValueError:
+        return False, "ts_format"
+    return True, dt
+
+
+def validate_payload(data, aula_id_from_topic):
+    """
+    Validate rfid/lectura/{aula_id} payload against docs/CONTRACT.md MQTT section.
+    Returns (ok: bool, reason: str | None, parsed: dict | None).
+    parsed = {"epc": str, "timestamp": datetime} on success.
+    """
+    if not isinstance(data, dict):
+        return False, "schema", None
+    if not all(k in data for k in ("aula_id", "epc", "timestamp")):
+        return False, "schema", None
+    if str(data["aula_id"]) != str(aula_id_from_topic):
+        return False, "aula_mismatch", None
+    ok, reason = validate_epc(data["epc"])
+    if not ok:
+        return False, reason, None
+    ok, ts_or_reason = validate_timestamp(data["timestamp"])
+    if not ok:
+        return False, "ts_format", None
+    return True, None, {"epc": data["epc"], "timestamp": ts_or_reason}
+
+
 class Command(BaseCommand):
     help = "Escucha mensajes MQTT para EPC de RFID con proceso por lotes."
 
@@ -339,6 +385,7 @@ class Command(BaseCommand):
         )
 
         self.batch_processor = BatchProcessor(batch_time)
+        self.reject_counts = Counter()
 
         client = mqtt.Client()
         if MQTT_USER and MQTT_PASSWORD:
@@ -356,6 +403,11 @@ class Command(BaseCommand):
             logger.info("Listener detenido por el usuario")
         except Exception as e:
             logger.error(f"Error de conexión MQTT: {e}")
+        finally:
+            logger.info(
+                "mqtt_reject_summary",
+                extra={"counts": dict(self.reject_counts)},
+            )
 
     def on_connect(self, client, userdata, flags, rc):
         """Callback al conectarse al broker."""
@@ -386,73 +438,51 @@ class Command(BaseCommand):
 
     def _process_lectura(self, aula_id_from_topic, payload_str, topic):
         """Procesa un mensaje del topic rfid/lectura/{aula_id}."""
+        def _reject(reason):
+            self.reject_counts[reason] += 1
+            logger.warning(
+                "mqtt_payload_rejected",
+                extra={
+                    "topic": topic,
+                    "reason": reason,
+                    "payload_preview": (payload_str or "")[:80],
+                },
+            )
+
+        # 1. JSON decode
         try:
             data = json.loads(payload_str)
         except json.JSONDecodeError:
-            logger.error(
-                f"Error decodificando JSON en el mensaje del topic {topic}. "
-                f"Payload: {payload_str[:50]}..."
-            )
+            _reject("json_decode")
             return
 
-        # Extraer los campos esperados del JSON
-        aula_id = data.get("aula_id")
-        epc = data.get("epc")
-        timestamp_str = data.get("timestamp")
-
-        if not all([epc, timestamp_str]):
-            logger.warning(
-                f"Campos clave (epc, timestamp) faltantes en el payload JSON: "
-                f"{data} (Topic: {topic})"
-            )
+        # 2. Schema + format validation (pure function from Task 1)
+        ok, reason, parsed = validate_payload(data, aula_id_from_topic)
+        if not ok:
+            _reject(reason)
             return
 
-        # Validar coincidencia de aula_id: topic vs payload
-        if aula_id is not None and str(aula_id) != aula_id_from_topic:
-            logger.warning(
-                f"aula_id del topic ({aula_id_from_topic}) difiere del payload ({aula_id}). "
-                f"Usando topic como fuente de verdad."
-            )
-
-        # Convertir aula_id del topic a int (fuente de verdad)
+        # 3. Topic aula_id -> int (operational, not a contract violation if topic is well-formed)
         try:
-            aula_id = int(aula_id_from_topic)
-        except ValueError:
-            logger.error(f"aula_id del topic '{aula_id_from_topic}' no es un número válido.")
+            aula_id_int = int(aula_id_from_topic)
+        except (TypeError, ValueError):
+            _reject("schema")  # malformed topic -- treat as schema violation
             return
 
-        # Convertir el timestamp ISO 8601 a un objeto datetime aware de Django
+        # 4. Aula existence -- operational error, not contract violation
         try:
-            # El formato es '2025-10-07T10:30:00'. fromisoformat maneja esto.
-            leido_en = datetime.fromisoformat(timestamp_str)
-            # Si el timestamp no incluye zona horaria (como en el ejemplo),
-            # asumimos UTC o la configuración de Django
-            if (
-                leido_en.tzinfo is None
-                or leido_en.tzinfo.utcoffset(leido_en) is None
-            ):
-                leido_en = timezone.make_aware(leido_en)
-        except ValueError:
-            logger.error(f"Formato de timestamp ('{timestamp_str}') inválido.")
-            return
-
-        # Validar la existencia del Aula
-        try:
-            Aula.objects.get(pk=aula_id)
+            Aula.objects.get(pk=aula_id_int)
         except Aula.DoesNotExist:
-            logger.error(
-                f"Aula con ID {aula_id} no encontrada en la BD "
-                f"(Topic: {topic})."
-            )
+            logger.error("Aula %s no existe", aula_id_int)
             return
 
-        # Almacenamiento en caché de Django
-        cache_key = CACHE_KEY_FORMAT.format(aula_id)
+        # 5. Almacenamiento en cache de Django
+        cache_key = CACHE_KEY_FORMAT.format(aula_id_int)
         data_to_cache = {
-            "epc": epc,
-            "leido_en": leido_en,
+            "epc": parsed["epc"],
+            "leido_en": parsed["timestamp"],
         }
         epc_cache.set(cache_key, data_to_cache, timeout=CACHE_TIMEOUT_SECONDS)
 
-        # Agregar al batch processor
-        self.batch_processor.add_epc(aula_id, epc, leido_en)
+        # 6. Happy path -- hand off to batch processor
+        self.batch_processor.add_epc(aula_id_int, parsed["epc"], parsed["timestamp"])

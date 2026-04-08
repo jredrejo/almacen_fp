@@ -36,8 +36,6 @@
 // --- Topics MQTT ---
 // Canonical lecture topic (D-06, docs/CONTRACT.md) — reader publishes here and pantalla subscribes here.
 #define MQTT_TOPIC_LECTURA  "rfid/lectura/" AULA_ID
-// Transition compat — remove after Phase 6 Task 2 updates mqtt_manager.h
-#define MQTT_TOPIC_PANTALLA MQTT_TOPIC_LECTURA  // DEPRECATED — Phase 6, remove after Task 2
 
 // --- rfid/sistema identity (D-08, docs/CONTRACT.md) ---
 #define DEVICE_ID   "pantalla-aula" AULA_ID

@@ -1,14 +1,8 @@
 // Maquina de estados para reconexion MQTT no bloqueante con backoff exponencial
-
-// Estados de la maquina de estados MQTT
-enum MqttState {
-  MQTT_CONNECTED,
-  MQTT_DISCONNECTED,
-  MQTT_WAITING_RETRY
-};
+// (enum MqttState and extern mqttState declared in opciones.h)
 
 // Variables de estado globales
-MqttState mqttState = MQTT_DISCONNECTED;
+MqttState mqttState = MS_DISCONNECTED;
 unsigned long lastReconnectAttempt = 0;
 unsigned long reconnectInterval = 1000;  // Empieza en 1s
 const unsigned long MAX_RECONNECT_INTERVAL = 30000;  // Maximo 30s
@@ -18,27 +12,30 @@ const unsigned long MAX_RECONNECT_INTERVAL = 30000;  // Maximo 30s
  * @return true si la conexion fue exitosa, false en caso contrario
  */
 bool attemptMqttConnect() {
-  // Construir payload LWT para cuando el dispositivo se desconecte
-  char lwt[128];
+  // Construir payload LWT para cuando el dispositivo se desconecte (D-08)
+  char lwt[192];
   snprintf(lwt, sizeof(lwt),
-           "{\"reader_id\":\"%s\",\"aula_id\":\"%s\",\"status\":\"offline\"}",
-           clientId, aulaId);
+           "{\"device_id\":\"%s\",\"role\":\"%s\",\"aula_id\":\"%s\",\"status\":\"offline\"}",
+           DEVICE_ID, ROLE, aulaId);
 
 #ifdef DEBUG
   Serial.println("Intentando conectar MQTT con LWT...");
 #endif
 
   // Conectar con LWT: topic, QoS=1, retain=true
-  if (client.connect(clientId, mqttUser, mqttPassword,
+  if (client.connect(DEVICE_ID, mqttUser, mqttPassword,
                      "rfid/sistema", 1, true, lwt)) {
     // Conexion exitosa - publicar mensaje online retenido
-    char timestamp[32];
-    obtenerFechaHora(timestamp, sizeof(timestamp));
+    char ts[32];
+    obtenerFechaHoraUTC(ts, sizeof(ts));
 
+    String ip = WiFi.localIP().toString();
     char onlineMsg[256];
     snprintf(onlineMsg, sizeof(onlineMsg),
-             "{\"reader_id\":\"%s\",\"aula_id\":\"%s\",\"status\":\"online\",\"ip\":\"%s\",\"version\":\"%s\",\"timestamp\":\"%s\"}",
-             clientId, aulaId, WiFi.localIP().toString().c_str(), version_almacen, timestamp);
+             "{\"device_id\":\"%s\",\"role\":\"%s\",\"aula_id\":\"%s\","
+             "\"status\":\"online\",\"ip\":\"%s\",\"version\":\"%s\","
+             "\"timestamp\":\"%s\"}",
+             DEVICE_ID, ROLE, aulaId, ip.c_str(), VERSION, ts);
 
     // Publicar mensaje online con retain=true para que este disponible aun si el dispositivo se apaga
     client.publish("rfid/sistema", onlineMsg, true);
@@ -64,11 +61,11 @@ bool attemptMqttConnect() {
  */
 void mqttReconnectStateMachine() {
   switch (mqttState) {
-    case MQTT_CONNECTED:
+    case MS_CONNECTED:
       // Verificar si seguimos conectados
       if (!client.connected()) {
         // Perdimos la conexion, transicionar a DESCONECTADO
-        mqttState = MQTT_DISCONNECTED;
+        mqttState = MS_DISCONNECTED;
         reconnectInterval = 1000;  // Resetear intervalo de reconexion
 #ifdef DEBUG
         Serial.println("MQTT desconectado - iniciando reconexion");
@@ -76,13 +73,13 @@ void mqttReconnectStateMachine() {
       }
       break;
 
-    case MQTT_DISCONNECTED:
+    case MS_DISCONNECTED:
       // Intentar conectar inmediatamente
       if (attemptMqttConnect()) {
-        mqttState = MQTT_CONNECTED;
+        mqttState = MS_CONNECTED;
       } else {
         // Fallo de conexion - esperar antes de reintentar
-        mqttState = MQTT_WAITING_RETRY;
+        mqttState = MS_WAITING_RETRY;
         lastReconnectAttempt = millis();
 #ifdef DEBUG
         Serial.print("Reconexion fallida - siguiente intento en ");
@@ -92,11 +89,11 @@ void mqttReconnectStateMachine() {
       }
       break;
 
-    case MQTT_WAITING_RETRY:
+    case MS_WAITING_RETRY:
       // Verificar si es tiempo de reintentar
       if (millis() - lastReconnectAttempt >= reconnectInterval) {
         if (attemptMqttConnect()) {
-          mqttState = MQTT_CONNECTED;
+          mqttState = MS_CONNECTED;
         } else {
           // Backoff exponencial: duplicar intervalo hasta el maximo
           reconnectInterval = min(reconnectInterval * 2, MAX_RECONNECT_INTERVAL);
