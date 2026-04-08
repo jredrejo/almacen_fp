@@ -119,6 +119,13 @@ void obtenerFechaHora(char* buffer, size_t bufferSize) {
   strftime(buffer, bufferSize, "%Y-%m-%dT%H:%M:%S", timeinfo);
 }
 
+// Emits UTC timestamp in ISO-8601 with literal Z -- canonical for MQTT payloads (D-10, docs/CONTRACT.md)
+void obtenerFechaHoraUTC(char* buffer, size_t bufferSize) {
+  time_t utc = now();  // TimeLib UTC (NTP-synced)
+  struct tm* timeinfo = gmtime(&utc);
+  strftime(buffer, bufferSize, "%Y-%m-%dT%H:%M:%SZ", timeinfo);
+}
+
 
 void loop() {
 

@@ -14,3 +14,9 @@ const uint16_t demodulationThreshold = 150;        // default 176
 
 
 const char* version_almacen="0.1.0";
+
+// Identity for rfid/sistema messages (D-08, docs/CONTRACT.md)
+// Keep in sync with aulaId
+const char* DEVICE_ID = "almacen-aula1";  // device_id: role + aula
+const char* ROLE      = "reader";
+const char* VERSION   = "1.1.0";

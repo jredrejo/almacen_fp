@@ -1,0 +1,51 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// =============================================================================
+// Configuracion del Tab5 - Pantalla de notificaciones RFID
+// =============================================================================
+// Rellenar estos valores con los datos de tu red y servidor antes de compilar.
+// Este archivo NO debe subirse a control de versiones con credenciales reales.
+// =============================================================================
+
+// --- Credenciales WiFi ---
+// SSID y contrasena de la red WiFi a la que se conectara el Tab5
+#define WIFI_SSID        "Santiago"
+#define WIFI_PASSWORD    "..RedrejoSantiago"
+
+// --- Configuracion MQTT ---
+// Direccion IP o hostname del broker MQTT (Mosquitto)
+#define MQTT_SERVER      "192.168.0.93"
+#define MQTT_PORT        1883
+// Usuario y contrasena del broker MQTT (dejar vacio si no requiere autenticacion)
+#define MQTT_USER        "rfid"
+#define MQTT_PASSWORD    "arisantiagoapostol"
+
+// --- Identificacion del dispositivo ---
+// ID del aula donde esta instalado el Tab5 (debe coincidir con el aula en Django)
+#define AULA_ID          "1"
+// ID unico del cliente MQTT para este dispositivo
+#define CLIENT_ID        "tab5_aula_" AULA_ID
+
+// --- API Django ---
+// URL base del servidor Django (sin barra final)
+#define API_BASE_URL     "http://192.168.0.93:8000"
+// Clave de API para autenticacion (header: Authorization: ApiKey <clave>)
+#define API_KEY          "TU_API_KEY"
+
+// --- Topics MQTT ---
+// Canonical lecture topic (D-06, docs/CONTRACT.md) — reader publishes here and pantalla subscribes here.
+#define MQTT_TOPIC_LECTURA  "rfid/lectura/" AULA_ID
+// Transition compat — remove after Phase 6 Task 2 updates mqtt_manager.h
+#define MQTT_TOPIC_PANTALLA MQTT_TOPIC_LECTURA  // DEPRECATED — Phase 6, remove after Task 2
+
+// --- rfid/sistema identity (D-08, docs/CONTRACT.md) ---
+#define DEVICE_ID   "pantalla-aula" AULA_ID
+#define DEVICE_ROLE "display"
+#define DEVICE_VERSION "1.1.0"
+
+// --- Modo debug ---
+// Comentar esta linea para desactivar los mensajes por Serial
+#define DEBUG 1
+
+#endif // CONFIG_H
