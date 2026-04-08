@@ -3,6 +3,11 @@
 Firmware para el M5Stack Tab5 (ESP32-P4) usando PlatformIO con framework Arduino
 y componentes ESP-IDF en modo híbrido.
 
+## Contrato de integración
+
+El contrato MQTT + REST entre pantalla, reader y Django vive en
+[`docs/CONTRACT.md`](../../docs/CONTRACT.md) (fuente de verdad).
+
 ## Requisitos
 
 - [PlatformIO](https://platformio.org/) (CLI o integración en IDE). La instalación con 
