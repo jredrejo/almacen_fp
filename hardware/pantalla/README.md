@@ -5,7 +5,12 @@ y componentes ESP-IDF en modo híbrido.
 
 ## Requisitos
 
-- [PlatformIO](https://platformio.org/) (CLI o integración en IDE)
+- [PlatformIO](https://platformio.org/) (CLI o integración en IDE). La instalación con 
+```bash
+curl -fsSL -o get-platformio.py https://raw.githubusercontent.com/platformio/platformio-core-installer/master/get-platformio.py
+python3 get-platformio.py
+ln -s ~/.platformio/penv/bin/pio ~/.local/bin/pio
+```
 - Plataforma pioarduino con soporte ESP32-P4 (se descarga automáticamente)
 
 ## Configuración
