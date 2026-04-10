@@ -68,19 +68,19 @@ Rejections MUST be logged via stdlib `logging.warning("mqtt_payload_rejected", e
 
 | ID | Hallazgo | Fix | Smoke verificado |
 |----|----------|-----|------------------|
-| A1 | Reader publica `rfid/lectura/{aula}` con QoS 0 implicito (PubSubClient no soporta QoS>0 en publish) | Document QoS 0 reality; rely on reader dedup + Django cache | [ ] |
-| A2 | Dual-publish a `rfid/pantalla/{aula}` desde reader | Eliminar las dos lineas del dual-publish en `Envio_datos.ino` | [ ] |
-| A3 | Pantalla se suscribe a `MQTT_TOPIC_PANTALLA` en vez de a `rfid/lectura/{AULA_ID}` | Cambiar suscripcion a `rfid/lectura/{AULA_ID}`; renombrar macro | [ ] |
-| A4 | Reader timestamp usa hora local Espana (CET/CEST) sin sufijo `Z` | Nuevo helper `obtenerFechaHoraUTC()` con `gmtime()` + `"%Y-%m-%dT%H:%M:%SZ"` | [ ] |
-| A5 | Campo temporal se llama `timestamp` en todos los componentes; CONTEXT.md proponia renombrar a `ts` | OUT OF SCOPE -- Deferred: keep `timestamp`, user decision Phase 6 plan-phase | [ ] |
-| A6 | Django no valida formato hex del `epc` antes de consultar `Producto` | Anadir `validate_epc(epc)` con regex `^[0-9A-F]{8,24}$` | [ ] |
-| A7 | Django acepta `timestamp` naive via `fromisoformat` + `make_aware`; D-10 requiere rechazar | Reemplazar con regex gate + `strptime("%Y-%m-%dT%H:%M:%SZ")` + `.replace(tzinfo=timezone.utc)` | [ ] |
-| A8 | Django no tiene rechazo estructurado ni contadores; solo `logger.warning/error` simples | Anadir `self.reject_counts = Counter()`, helper `reject(reason)`, log con `extra={"topic","reason","payload_preview"}`, volcado en shutdown | [ ] |
-| A9 | `aula_mismatch` entre topic y payload se loggea como warning y continua | Sustituir por `reject("aula_mismatch"); return` | [ ] |
-| A10 | LWT reader usa `reader_id`, LWT pantalla usa `client_id`; campos online divergen | Unificar a `device_id` + `role` en ambos; anadir `version` + `timestamp` en ambos online | [ ] |
-| A11 | Broker conserva retained anterior en `rfid/sistema` con `reader_id`/`client_id` | Anadir paso en smoke test: `mosquitto_pub -h <broker> -t rfid/sistema -r -n` antes del primer arranque con firmware nuevo | [ ] |
-| A12 | Los 3 READMEs no referencian contrato canonico (no existia `docs/CONTRACT.md`) | Crear `docs/CONTRACT.md` con seccion MQTT + anadir link en los 3 README | [ ] |
-| A13 | Listener no persiste tabla de rechazos en CONTRACT.md | Escribir tabla hallazgo -> fix -> smoke verificado en `docs/CONTRACT.md` (esta seccion) | [ ] |
+| A1 | Reader publica `rfid/lectura/{aula}` con QoS 0 implicito (PubSubClient no soporta QoS>0 en publish) | Document QoS 0 reality; rely on reader dedup + Django cache | [x] Documented, reader dedup + Django cache confirm at-least-once |
+| A2 | Dual-publish a `rfid/pantalla/{aula}` desde reader | Eliminar las dos lineas del dual-publish en `Envio_datos.ino` | [x] grep confirms no rfid/pantalla/ publish; pantalla still receives events via rfid/lectura |
+| A3 | Pantalla se suscribe a `MQTT_TOPIC_PANTALLA` en vez de a `rfid/lectura/{AULA_ID}` | Cambiar suscripcion a `rfid/lectura/{AULA_ID}`; renombrar macro | [x] grep confirms MQTT_TOPIC_LECTURA; live smoke pantalla displays event |
+| A4 | Reader timestamp usa hora local Espana (CET/CEST) sin sufijo `Z` | Nuevo helper `obtenerFechaHoraUTC()` con `gmtime()` + `"%Y-%m-%dT%H:%M:%SZ"` | [x] Django receives timestamps with Z suffix, no naive rejection on happy path |
+| A5 | Campo temporal se llama `timestamp` en todos los componentes; CONTEXT.md proponia renombrar a `ts` | OUT OF SCOPE -- Deferred: keep `timestamp`, user decision Phase 6 plan-phase | [-] OUT OF SCOPE per user decision Phase 6 -- field stays 'timestamp' |
+| A6 | Django no valida formato hex del `epc` antes de consultar `Producto` | Anadir `validate_epc(epc)` con regex `^[0-9A-F]{8,24}$` | [x] mosquitto_pub zz → reason=epc_format, counter +1 |
+| A7 | Django acepta `timestamp` naive via `fromisoformat` + `make_aware`; D-10 requiere rechazar | Reemplazar con regex gate + `strptime("%Y-%m-%dT%H:%M:%SZ")` + `.replace(tzinfo=timezone.utc)` | [x] mosquitto_pub '2026-04-08 10:30' → reason=ts_format, counter +1 |
+| A8 | Django no tiene rechazo estructurado ni contadores; solo `logger.warning/error` simples | Anadir `self.reject_counts = Counter()`, helper `reject(reason)`, log con `extra={"topic","reason","payload_preview"}`, volcado en shutdown | [x] 5/5 reject reasons logged with reason+topic+payload; shutdown summary shows counts |
+| A9 | `aula_mismatch` entre topic y payload se loggea como warning y continua | Sustituir por `reject("aula_mismatch"); return` | [x] aula_id=9 on topic /1 → reason=aula_mismatch, counter +1 |
+| A10 | LWT reader usa `reader_id`, LWT pantalla usa `client_id`; campos online divergen | Unificar a `device_id` + `role` en ambos; anadir `version` + `timestamp` en ambos online | [x] rfid/sistema shows device_id+role for both reader and pantalla; retained offline LWT has device_id |
+| A11 | Broker conserva retained anterior en `rfid/sistema` con `reader_id`/`client_id` | Anadir paso en smoke test: `mosquitto_pub -h <broker> -t rfid/sistema -r -n` antes del primer arranque con firmware nuevo | [x] Stale retained cleared; new device overwrote on boot |
+| A12 | Los 3 READMEs no referencian contrato canonico (no existia `docs/CONTRACT.md`) | Crear `docs/CONTRACT.md` con seccion MQTT + anadir link en los 3 README | [x] File exists, 3 READMEs link to it |
+| A13 | Listener no persiste tabla de rechazos en CONTRACT.md | Escribir tabla hallazgo -> fix -> smoke verificado en `docs/CONTRACT.md` (esta seccion) | [x] This row -- table itself is now filled in |
 
 ### Deployment / smoke procedure
 

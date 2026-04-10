@@ -405,8 +405,8 @@ class Command(BaseCommand):
             logger.error(f"Error de conexión MQTT: {e}")
         finally:
             logger.info(
-                "mqtt_reject_summary",
-                extra={"counts": dict(self.reject_counts)},
+                "mqtt_reject_summary counts=%s",
+                dict(self.reject_counts),
             )
 
     def on_connect(self, client, userdata, flags, rc):
@@ -441,12 +441,8 @@ class Command(BaseCommand):
         def _reject(reason):
             self.reject_counts[reason] += 1
             logger.warning(
-                "mqtt_payload_rejected",
-                extra={
-                    "topic": topic,
-                    "reason": reason,
-                    "payload_preview": (payload_str or "")[:80],
-                },
+                "mqtt_payload_rejected reason=%s topic=%s payload=%s",
+                reason, topic, (payload_str or "")[:80],
             )
 
         # 1. JSON decode
