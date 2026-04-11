@@ -37,10 +37,19 @@
 // Canonical lecture topic (D-06, docs/CONTRACT.md) — reader publishes here and pantalla subscribes here.
 #define MQTT_TOPIC_LECTURA  "rfid/lectura/" AULA_ID
 
+// Command topic (Phase 06.1, D-03/D-07): Django publishes photo upload/clean commands here.
+// Subscribed with QoS 1 from mqtt_manager.h::attemptMqttConnect.
+// NOTE: sub-topic under rfid/sistema/ to avoid collision with the retained LWT on rfid/sistema.
+#define MQTT_TOPIC_COMANDO  "rfid/sistema/comando/" AULA_ID
+
+// Status feedback topic (Phase 06.1): Tab5 publishes per-run upload/clean summary here.
+// QoS 0, retain=false. Consumers: Django admin via mqtt_listener (future).
+#define MQTT_TOPIC_ESTADO   "rfid/sistema/estado/" AULA_ID
+
 // --- rfid/sistema identity (D-08, docs/CONTRACT.md) ---
 #define DEVICE_ID   "pantalla-aula" AULA_ID
 #define DEVICE_ROLE "display"
-#define DEVICE_VERSION "1.1.0"
+#define DEVICE_VERSION "1.2.0"
 
 // --- Modo debug ---
 // Comentar esta linea para desactivar los mensajes por Serial

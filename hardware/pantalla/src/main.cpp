@@ -225,13 +225,23 @@ void agregarEvento(const char* nombre, const char* tipo, const char* hora) {
 }
 
 #ifdef CAMERA_ENABLED
+// Parametro heap-allocated por tareaResolverEpc; ownership transferida a la tarea.
+struct FotoParam {
+  char epc[25];  // EPC max 24 hex chars + NUL (CONTRACT.md: ^[0-9A-F]{8,24}$)
+};
+
 /**
  * Tarea FreeRTOS para capturar y guardar foto en segundo plano.
- * Se crea al recibir evento RFID y se autodestruye al terminar.
- * No bloquea el loop principal ni la visualizacion de notificacion (D-05).
+ * Recibe FotoParam* con el EPC. Libera el param al terminar.
  */
 void tareaCapturarFoto(void* param) {
-  capturarYGuardarFoto();
+  FotoParam* fp = static_cast<FotoParam*>(param);
+  if (fp == nullptr) {
+    vTaskDelete(NULL);
+    return;
+  }
+  capturarYGuardarFoto(fp->epc);
+  heap_caps_free(fp);
   vTaskDelete(NULL);
 }
 #endif
@@ -257,7 +267,22 @@ void tareaResolverEpc(void* param) {
 #ifdef CAMERA_ENABLED
       // Disparar captura de foto ANTES de consultar API (per D-04)
       if (camaraInicializada) {
-        xTaskCreate(tareaCapturarFoto, "foto", 8192, NULL, 1, NULL);
+        FotoParam* fp = (FotoParam*)heap_caps_malloc(sizeof(FotoParam), MALLOC_CAP_8BIT);
+        if (fp != nullptr) {
+          strncpy(fp->epc, job.epc, sizeof(fp->epc) - 1);
+          fp->epc[sizeof(fp->epc) - 1] = '\0';
+          if (xTaskCreate(tareaCapturarFoto, "foto", 8192, fp, 1, NULL) != pdPASS) {
+            heap_caps_free(fp);  // task create failed, reclaim
+#ifdef DEBUG
+            Serial.println("ERROR: xTaskCreate(foto) fallo, param liberado");
+#endif
+          }
+        }
+#ifdef DEBUG
+        else {
+          Serial.println("ERROR: heap_caps_malloc(FotoParam) fallo");
+        }
+#endif
       }
 #endif
 
@@ -300,6 +325,27 @@ void tareaResolverEpc(void* param) {
       xQueueSend(resultQueue, &result, portMAX_DELAY);
     }
   }
+}
+
+// =============================================================================
+// Photo upload/cleanup command tasks (Phase 06.1)
+// Stubs in Plan 01; real bodies land in Plan 03.
+// mqttCallback dispatches here via xTaskCreate when a command arrives.
+// =============================================================================
+void tareaUploadFotos(void* param) {
+  (void)param;
+#ifdef DEBUG
+  Serial.println("[06.1 STUB] tareaUploadFotos invocada — Plan 03 implementara el body");
+#endif
+  vTaskDelete(NULL);
+}
+
+void tareaLimpiarFotos(void* param) {
+  (void)param;
+#ifdef DEBUG
+  Serial.println("[06.1 STUB] tareaLimpiarFotos invocada — Plan 03 implementara el body");
+#endif
+  vTaskDelete(NULL);
 }
 
 // =============================================================================

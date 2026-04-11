@@ -36,16 +36,22 @@ struct EpcJob {
 // static would give each translation unit its own copy — a silent failure.
 extern QueueHandle_t epcQueue;
 
+// Forward declarations for command dispatch (bodies in main.cpp Task 4 / Plan 03).
+// mqttCallback only routes — never call HTTP/SD directly from the callback.
+void tareaUploadFotos(void* param);
+void tareaLimpiarFotos(void* param);
+
 /**
  * Callback MQTT: se ejecuta al recibir un mensaje en un topic suscrito.
- * Parsea el JSON y extrae el campo "epc", encolandolo para procesamiento async.
+ * Parsea el JSON y rutea por topic prefix:
+ *   - rfid/sistema/comando/<AULA_ID>: dispatch a tareaUploadFotos/tareaLimpiarFotos
+ *   - rfid/lectura/<AULA_ID>: encola EPC para procesamiento async (flujo existente)
  * NO hace HTTP ni operaciones bloqueantes dentro del callback.
  */
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  // Parsear JSON del payload MQTT
+  // Parse JSON once; both paths need it.
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, payload, length);
-
   if (err) {
 #ifdef DEBUG
     Serial.print("Error parseando JSON MQTT: ");
@@ -54,13 +60,41 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     return;
   }
 
-  // Extraer campo "epc" del mensaje y encolar
+  // --- Route 1: command topic "rfid/sistema/comando/<AULA_ID>" ---
+  // strlen("rfid/sistema/comando/") == 21
+  if (strncmp(topic, "rfid/sistema/comando/", 21) == 0) {
+    const char* action = doc["action"];
+    if (!action) {
+#ifdef DEBUG
+      Serial.println("MQTT cmd: payload sin campo 'action', ignorado");
+#endif
+      return;
+    }
+    if (strcmp(action, "upload_fotos") == 0) {
+#ifdef DEBUG
+      Serial.println("MQTT cmd: upload_fotos — dispatch a tareaUploadFotos");
+#endif
+      xTaskCreate(tareaUploadFotos, "upload", 12288, NULL, 1, NULL);
+    } else if (strcmp(action, "limpiar_fotos") == 0) {
+#ifdef DEBUG
+      Serial.println("MQTT cmd: limpiar_fotos — dispatch a tareaLimpiarFotos");
+#endif
+      xTaskCreate(tareaLimpiarFotos, "clean", 6144, NULL, 1, NULL);
+    } else {
+#ifdef DEBUG
+      Serial.print("MQTT cmd: action desconocida: ");
+      Serial.println(action);
+#endif
+    }
+    return;
+  }
+
+  // --- Route 2: lecture topic "rfid/lectura/<AULA_ID>" (existing flow, unchanged) ---
   const char* epc = doc["epc"];
   if (epc && epcQueue != nullptr) {
     EpcJob job;
     strncpy(job.epc, epc, sizeof(job.epc) - 1);
     job.epc[sizeof(job.epc) - 1] = '\0';
-    // Non-blocking enqueue (MQTT callback runs in loop task context)
     if (xQueueSend(epcQueue, &job, 0) != pdTRUE) {
 #ifdef DEBUG
       Serial.println("AVISO: Cola EPC llena, descartando evento");
@@ -136,10 +170,14 @@ bool attemptMqttConnect(PubSubClient& client) {
     // Suscribirse al topic canonico de lecturas con QoS 1 (D-04 subscribe side)
     client.subscribe(MQTT_TOPIC_LECTURA, 1);
 
+    // Suscribirse al topic de comandos con QoS 1 (Phase 06.1, D-03/D-07)
+    client.subscribe(MQTT_TOPIC_COMANDO, 1);
 #ifdef DEBUG
     Serial.println("MQTT conectado exitosamente");
     Serial.print("Suscrito a: ");
     Serial.println(MQTT_TOPIC_LECTURA);
+    Serial.print("Suscrito a: ");
+    Serial.println(MQTT_TOPIC_COMANDO);
 #endif
     return true;
   } else {

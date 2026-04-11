@@ -75,29 +75,32 @@ static uint32_t capturaPixFmt = 0;          // Formato pixel real (V4L2_PIX_FMT_
 static uint8_t* jpegBuffer = nullptr;       // Buffer para JPEG codificado (DMA-alineado)
 
 /**
- * Genera el nombre de archivo para una foto con datestamp.
- * Formato: /fotos/YYYY-MM-DD_HH-MM-SS.jpg
+ * Genera el nombre de archivo para una foto con EPC + datestamp.
+ * Formato: /fotos/<EPC>_YYYY-MM-DD_HH-MM-SS.jpg (Europe/Madrid local time, D-04).
  * Si el archivo ya existe (colision de segundo), anade sufijo incremental _2, _3, etc.
- * @param buffer Buffer donde escribir la ruta completa (minimo 64 bytes)
+ * Buffer minimo recomendado: 96 bytes (EPC hasta 24 + prefix + datestamp + sufijo + NUL).
+ * @param buffer Buffer donde escribir la ruta completa
  * @param bufSize Tamano del buffer
+ * @param epc EPC hex-uppercase a incluir en el nombre (sin validar aqui)
  */
-inline void generarNombreFoto(char* buffer, size_t bufSize) {
+inline void generarNombreFoto(char* buffer, size_t bufSize, const char* epc) {
   time_t utc = now();
   time_t local = spain.toLocal(utc);
   struct tm* timeinfo = localtime(&local);
 
-  // Generar nombre base con fecha/hora
-  snprintf(buffer, bufSize, "/fotos/%04d-%02d-%02d_%02d-%02d-%02d.jpg",
+  // Nombre base: /fotos/<EPC>_YYYY-MM-DD_HH-MM-SS.jpg
+  snprintf(buffer, bufSize, "/fotos/%s_%04d-%02d-%02d_%02d-%02d-%02d.jpg",
+           epc,
            timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday,
            timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
 
-  // Si el archivo ya existe, buscar sufijo incremental (_2, _3, ...) (per pitfall 6)
+  // Anti-colision (_2, _3, ...) — solo si el segundo exacto ya se uso con el mismo EPC
   if (SD.exists(buffer)) {
-    char base[64];
-    snprintf(base, sizeof(base), "/fotos/%04d-%02d-%02d_%02d-%02d-%02d",
+    char base[96];
+    snprintf(base, sizeof(base), "/fotos/%s_%04d-%02d-%02d_%02d-%02d-%02d",
+             epc,
              timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday,
              timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
-
     for (int sufijo = 2; sufijo <= 99; sufijo++) {
       snprintf(buffer, bufSize, "%s_%d.jpg", base, sufijo);
       if (!SD.exists(buffer)) break;
@@ -628,7 +631,7 @@ inline void inicializarCamara() {
  * esta funcion en una tarea FreeRTOS separada:
  *   xTaskCreate(tareaCapturarFoto, "foto", 8192, NULL, 1, NULL);
  */
-inline void capturarYGuardarFoto() {
+inline void capturarYGuardarFoto(const char* epc) {
   // Si la camara no se inicializo, salir silenciosamente
   if (!camaraInicializada || videoFd < 0) return;
 
@@ -742,9 +745,9 @@ inline void capturarYGuardarFoto() {
     return;
   }
 
-  // Generar nombre de archivo con datestamp (con anti-colision)
-  char ruta[64];
-  generarNombreFoto(ruta, sizeof(ruta));
+  // Buffer bumped from 64 → 96 to fit /fotos/<EPC up to 24>_<dateStamp>_99.jpg + NUL
+  char ruta[96];
+  generarNombreFoto(ruta, sizeof(ruta), epc);
 
   // Escribir archivo JPEG en SD
   File f = SD.open(ruta, FILE_WRITE);
