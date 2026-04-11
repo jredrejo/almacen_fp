@@ -142,6 +142,12 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Phase 06.1: raw binary upload endpoint for RFID photos receives request.body
+# reads up to 10 MB. Django default (2.5 MB) would reject JPEGs > 2.5 MB.
+# Set 1 MB above the view's FOTO_MAX_BYTES so the view can return a proper 413
+# instead of Django's generic 400.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 11 * 1024 * 1024  # 11 MB (view cap is 10 MB)
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

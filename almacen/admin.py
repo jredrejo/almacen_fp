@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Aula, Producto, Ubicacion, Prestamo, Persona
+from .models import Aula, FotoRFID, Producto, Ubicacion, Prestamo, Persona
 
 
 @admin.register(Aula)
@@ -47,3 +47,12 @@ class ProductoAdmin(admin.ModelAdmin):
 class PrestamoAdmin(admin.ModelAdmin):
     list_display = ("producto", "usuario", "tomado_en", "devuelto_en")
     list_filter = ("usuario", "producto")
+
+
+@admin.register(FotoRFID)
+class FotoRFIDAdmin(admin.ModelAdmin):
+    list_display = ("id", "epc", "aula", "timestamp_captura", "subida_en", "tamano_bytes")
+    list_filter = ("aula",)
+    search_fields = ("epc",)
+    readonly_fields = ("subida_en", "tamano_bytes")
+    date_hierarchy = "timestamp_captura"

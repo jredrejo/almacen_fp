@@ -5,4 +5,5 @@ from almacen import api
 urlpatterns = [
     path("epc/<str:epc>/", api.epc_lookup, name="api_epc_lookup"),
     path("epc/", api.epc_bulk_lookup, name="api_epc_bulk_lookup"),
+    path("fotos/", api.upload_foto, name="api_upload_foto"),
 ]

@@ -167,3 +167,42 @@ class Prestamo(models.Model):
 
     def __str__(self):
         return f"{self.producto} → {self.usuario}"
+
+
+class FotoRFID(models.Model):
+    """
+    Foto RFID recibida del Tab5 vía upload bajo demanda (Phase 06.1, D-09/D-10).
+
+    Sin FK a Lectura/Persona/Producto — la asociación se deriva del EPC en el
+    nombre de archivo. Ver docs/CONTRACT.md sección "Photo Upload".
+    """
+
+    imagen = models.ImageField("Imagen", upload_to="fotos_rfid/")
+    epc = models.CharField("EPC", max_length=96, db_index=True)
+    aula = models.ForeignKey(
+        Aula,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="fotos_rfid",
+    )
+    timestamp_captura = models.DateTimeField(
+        "Momento de captura (tz-aware, Europe/Madrid origen)",
+        null=True,
+        blank=True,
+    )
+    tamano_bytes = models.PositiveIntegerField("Tamaño (bytes)", null=True, blank=True)
+    subida_en = models.DateTimeField("Subida en", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Foto RFID"
+        verbose_name_plural = "Fotos RFID"
+        ordering = ["-timestamp_captura"]
+        unique_together = [("epc", "timestamp_captura")]
+        indexes = [
+            models.Index(fields=["epc"]),
+            models.Index(fields=["aula", "-timestamp_captura"]),
+        ]
+
+    def __str__(self):
+        return f"{self.epc} @ {self.timestamp_captura}"
