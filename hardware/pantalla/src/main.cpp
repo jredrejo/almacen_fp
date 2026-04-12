@@ -31,6 +31,7 @@
 #ifdef CAMERA_ENABLED
 #include "camera_manager.h"
 #endif
+#include "photo_commands.h"   // Phase 06.1 — must come AFTER camera_manager.h (uses sdMutex)
 
 // --- Colas FreeRTOS para pipeline EPC ---
 // epcQueue: MQTT callback -> worker task (declared extern in mqtt_manager.h)
@@ -327,26 +328,7 @@ void tareaResolverEpc(void* param) {
   }
 }
 
-// =============================================================================
-// Photo upload/cleanup command tasks (Phase 06.1)
-// Stubs in Plan 01; real bodies land in Plan 03.
-// mqttCallback dispatches here via xTaskCreate when a command arrives.
-// =============================================================================
-void tareaUploadFotos(void* param) {
-  (void)param;
-#ifdef DEBUG
-  Serial.println("[06.1 STUB] tareaUploadFotos invocada — Plan 03 implementara el body");
-#endif
-  vTaskDelete(NULL);
-}
-
-void tareaLimpiarFotos(void* param) {
-  (void)param;
-#ifdef DEBUG
-  Serial.println("[06.1 STUB] tareaLimpiarFotos invocada — Plan 03 implementara el body");
-#endif
-  vTaskDelete(NULL);
-}
+// photo_commands.h provides real bodies for tareaUploadFotos / tareaLimpiarFotos
 
 // =============================================================================
 // Setup - Inicializacion del hardware y conectividad
