@@ -1,0 +1,27 @@
+{% extends "admin/base_site.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<p style="color:#b94a48; font-weight:bold;">
+    Esta accion es DESTRUCTIVA. Borrara TODAS las fotos en
+    <code>/fotos/</code> de la tarjeta SD del Tab5 del aula <strong>{{ aula_id }}</strong>.
+</p>
+
+<p>
+    Fotos seleccionadas: <strong>{{ foto_count }}</strong>
+    (la seleccion solo infiere el aula; el borrado es total).
+</p>
+
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="{{ action_name }}">
+    <input type="hidden" name="confirm" value="yes">
+    {% for pk in selected_ids %}
+    <input type="hidden" name="_selected_action" value="{{ pk }}">
+    {% endfor %}
+    <button type="submit" class="deletelink">Si, borrar /fotos/ del Tab5 del aula {{ aula_id }}</button>
+    <a href="../" class="button cancel-link">Cancelar</a>
+</form>
+{% endblock %}

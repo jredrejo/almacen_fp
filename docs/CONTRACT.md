@@ -98,11 +98,79 @@ Document the smoke steps (to be executed in Plan 05):
    - `aula_mismatch`: to topic `rfid/lectura/3`, payload with `"aula_id":"9"`
 6. Confirm listener logs one `mqtt_payload_rejected` per case, never crashes, and shutdown summary shows counts.
 
+### Photo Recovery (Phase 06.1)
+
+Bajo-demanda photo transfer from Tab5 SD to Django. Triggered by humans via
+`python manage.py recuperar_fotos --aula <id>` OR via Django admin actions on
+`FotoRFIDAdmin`.
+
+#### Command channel
+
+| topic | publisher | subscriber(s) | QoS | retain | purpose |
+|---|---|---|---|---|---|
+| `rfid/sistema/comando/{aula_id}` | Django (recuperar_fotos) | pantalla (Tab5) | 1 | false | upload_fotos / limpiar_fotos |
+| `rfid/sistema/estado/{aula_id}` | pantalla (Tab5) | logging | 0 | false | Batch summary |
+
+#### Command payload
+
+```json
+{"action": "upload_fotos"}
+{"action": "limpiar_fotos"}
+```
+
+10-second dedup window on Tab5 side rejects replayed commands.
+
+#### Status payload
+
+```json
+{"device_id": "pantalla-aula1", "action": "upload_fotos", "ok": 12, "fail": 0, "total": 12}
+{"device_id": "pantalla-aula1", "action": "limpiar_fotos", "removed": 12, "failed": 0, "total": 12}
+```
+
+#### Filename format (normative)
+
+```
+<EPC>_YYYY-MM-DD_HH-MM-SS.jpg
+```
+
+Regex: `^[0-9A-Fa-f]{8,24}_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(_\d+)?\.jpg$`
+
+**Timezone:** Europe/Madrid local wall clock (NOT UTC). Django parses with `ZoneInfo("Europe/Madrid")`.
+
+#### Destructive-action governance (T-06.1-16)
+
+`limpiar_fotos` deletes every `.jpg` under `/fotos/` unconditionally. Three mitigations:
+1. `recuperar_fotos --action limpiar` requires explicit flag (default is upload)
+2. Django admin action renders intermediate confirmation page
+3. Only Django staff users can reach admin actions
+
 ---
 
 ## REST
 
-_To be defined in Phase 7 -- REST API Contract Alignment._
+_Full REST contract to be defined in Phase 7. Phase 06.1 introduces one early endpoint._
+
+### Photo Upload (Phase 06.1)
+
+| method | path | auth | content-type | purpose |
+|---|---|---|---|---|
+| POST | `/api/fotos/` | `Authorization: ApiKey <clave>` | `image/jpeg` | Receive photo from Tab5 |
+
+#### Request
+
+Headers: `Authorization: ApiKey <clave>`, `X-Filename: <EPC>_YYYY-MM-DD_HH-MM-SS.jpg`, `X-Aula-Id: <int>`
+Body: raw JPEG bytes (must start with `FF D8 FF`). Size limit: 10 MB.
+
+#### Response
+
+- `201` -- `{"ok": true, "id": <int>}` (first insert)
+- `200` -- `{"ok": true, "id": <int>, "duplicate": true}` (idempotent retry)
+- `400` -- invalid filename/timestamp/not JPEG/empty body
+- `401` -- missing/wrong API key
+- `405` -- non-POST
+- `413` -- body > 10 MB
+
+`unique_together = ("epc", "timestamp_captura")` enforces idempotency.
 
 ---
 

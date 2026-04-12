@@ -1,4 +1,7 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.core.management import call_command
+from django.shortcuts import render
+
 from .models import Aula, FotoRFID, Producto, Ubicacion, Prestamo, Persona
 
 
@@ -56,3 +59,47 @@ class FotoRFIDAdmin(admin.ModelAdmin):
     search_fields = ("epc",)
     readonly_fields = ("subida_en", "tamano_bytes")
     date_hierarchy = "timestamp_captura"
+    actions = ["recuperar_fotos_action", "limpiar_fotos_action"]
+
+    def _single_aula_or_error(self, request, queryset):
+        aulas = set(queryset.values_list("aula_id", flat=True))
+        aulas.discard(None)
+        if len(aulas) == 0:
+            self.message_user(request, "Selecciona al menos una foto de un aula concreta.", level=messages.ERROR)
+            return None
+        if len(aulas) > 1:
+            self.message_user(request, f"Seleccion cubre {len(aulas)} aulas. Selecciona una sola.", level=messages.ERROR)
+            return None
+        return str(aulas.pop())
+
+    @admin.action(description="Recuperar fotos del Tab5 (publicar upload_fotos)")
+    def recuperar_fotos_action(self, request, queryset):
+        aula_id = self._single_aula_or_error(request, queryset)
+        if aula_id is None:
+            return
+        try:
+            call_command("recuperar_fotos", aula=aula_id, action="upload")
+        except Exception as exc:
+            self.message_user(request, f"Fallo al publicar upload_fotos para aula {aula_id}: {exc}", level=messages.ERROR)
+            return
+        self.message_user(request, f"Publicado upload_fotos para aula {aula_id}.", level=messages.SUCCESS)
+
+    @admin.action(description="Limpiar fotos del Tab5 (BORRA TODA la SD /fotos/)")
+    def limpiar_fotos_action(self, request, queryset):
+        aula_id = self._single_aula_or_error(request, queryset)
+        if aula_id is None:
+            return
+        if request.POST.get("confirm") != "yes":
+            return render(request, "admin/almacen/fotorfid/limpiar_confirm.html", {
+                "title": "Confirmar limpieza destructiva",
+                "aula_id": aula_id,
+                "foto_count": queryset.count(),
+                "selected_ids": queryset.values_list("pk", flat=True),
+                "action_name": "limpiar_fotos_action",
+            })
+        try:
+            call_command("recuperar_fotos", aula=aula_id, action="limpiar")
+        except Exception as exc:
+            self.message_user(request, f"Fallo al publicar limpiar_fotos para aula {aula_id}: {exc}", level=messages.ERROR)
+            return
+        self.message_user(request, f"Publicado limpiar_fotos para aula {aula_id}. /fotos/ sera borrado.", level=messages.WARNING)

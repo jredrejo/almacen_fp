@@ -246,8 +246,11 @@ class TestMQTTListenerRouting(TestCase):
         from almacen.management.commands.mqtt_listener import Command, BatchProcessor
         from datetime import timedelta
 
+        from collections import Counter
+
         self.command = Command()
         self.command.batch_processor = BatchProcessor(batch_time_seconds=5)
+        self.command.reject_counts = Counter()
 
     def test_on_message_lectura_topic(self):
         """Prueba procesamiento de mensaje en topic rfid/lectura/{aula_id}."""
@@ -260,7 +263,7 @@ class TestMQTTListenerRouting(TestCase):
         msg.payload = json.dumps({
             "aula_id": "1",
             "epc": "AABBCCDDEEFF001122334455",
-            "timestamp": "2026-03-17T14:30:05"
+            "timestamp": "2026-03-17T14:30:05Z"
         }).encode('utf-8')
 
         # Mockear el método add_epc para verificar que fue llamado
@@ -319,7 +322,7 @@ class TestMQTTListenerRouting(TestCase):
         self.command.batch_processor.add_epc.assert_not_called()
 
     def test_on_message_aula_id_mismatch(self):
-        """Prueba warning cuando aula_id del topic difiere del payload."""
+        """Prueba rechazo estricto cuando aula_id del topic difiere del payload."""
         from unittest.mock import MagicMock, patch
         import json
 
@@ -329,7 +332,7 @@ class TestMQTTListenerRouting(TestCase):
         msg.payload = json.dumps({
             "aula_id": "2",  # Difiere del topic
             "epc": "AABBCCDDEEFF001122334455",
-            "timestamp": "2026-03-17T14:30:05"
+            "timestamp": "2026-03-17T14:30:05Z"
         }).encode('utf-8')
 
         # Mockear batch_processor
@@ -339,15 +342,13 @@ class TestMQTTListenerRouting(TestCase):
         with patch('almacen.management.commands.mqtt_listener.logger') as mock_logger:
             self.command.on_message(client=MagicMock(), userdata=None, msg=msg)
 
-            # Verificar warning logueado
+            # Verificar warning logueado con reason=aula_mismatch
             mock_logger.warning.assert_called()
             warning_msg = str(mock_logger.warning.call_args)
-            self.assertIn("difiere del payload", warning_msg)
+            self.assertIn("aula_mismatch", warning_msg)
 
-        # Verificar que se usó aula_id del topic (1) en lugar del JSON (2)
-        self.command.batch_processor.add_epc.assert_called_once()
-        call_args = self.command.batch_processor.add_epc.call_args
-        self.assertEqual(call_args[0][0], 1)  # aula_id del topic
+        # Verificar que add_epc NO fue llamado (strict reject)
+        self.command.batch_processor.add_epc.assert_not_called()
 
     def test_on_connect_subscriptions(self):
         """Prueba que on_connect se suscribe a los topics correctos."""
