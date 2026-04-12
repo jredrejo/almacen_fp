@@ -36,6 +36,7 @@ extern PubSubClient mqttClient;
 static constexpr uint32_t PHOTO_DEDUP_WINDOW_MS = 10000;
 static uint32_t lastUploadCommandMs = 0;
 static uint32_t lastLimpiarCommandMs = 0;
+static portMUX_TYPE dedupSpinlock = portMUX_INITIALIZER_UNLOCKED;
 
 /**
  * Enumerate /fotos/ on SD under mutex SNAPSHOT (take, read, release).
@@ -97,7 +98,7 @@ inline std::vector<String> listarFotos() {
 inline bool subirFoto(const String& ruta) {
 #ifdef CAMERA_ENABLED
   if (sdMutex == nullptr) return false;
-  if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(3000)) != pdTRUE) {
+  if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(10000)) != pdTRUE) {
 #ifdef DEBUG
     Serial.println("[foto-cmd] subirFoto: timeout tomando sdMutex");
 #endif
@@ -170,10 +171,12 @@ inline bool subirFoto(const String& ruta) {
 inline void tareaUploadFotos(void* param) {
   (void)param;
 
-  // Dedup: ignore replayed command within window
+  // Dedup: ignore replayed command within window (atomic check-and-set)
+  portENTER_CRITICAL(&dedupSpinlock);
   uint32_t now_ms = millis();
   if (lastUploadCommandMs != 0 &&
       (now_ms - lastUploadCommandMs) < PHOTO_DEDUP_WINDOW_MS) {
+    portEXIT_CRITICAL(&dedupSpinlock);
 #ifdef DEBUG
     Serial.println("[foto-cmd] upload_fotos ignorado (dedup window)");
 #endif
@@ -181,6 +184,7 @@ inline void tareaUploadFotos(void* param) {
     return;
   }
   lastUploadCommandMs = now_ms;
+  portEXIT_CRITICAL(&dedupSpinlock);
 
   std::vector<String> files = listarFotos();
   int total = (int)files.size();
@@ -225,9 +229,11 @@ inline void tareaUploadFotos(void* param) {
 inline void tareaLimpiarFotos(void* param) {
   (void)param;
 
+  portENTER_CRITICAL(&dedupSpinlock);
   uint32_t now_ms = millis();
   if (lastLimpiarCommandMs != 0 &&
       (now_ms - lastLimpiarCommandMs) < PHOTO_DEDUP_WINDOW_MS) {
+    portEXIT_CRITICAL(&dedupSpinlock);
 #ifdef DEBUG
     Serial.println("[foto-cmd] limpiar_fotos ignorado (dedup window)");
 #endif
@@ -235,6 +241,7 @@ inline void tareaLimpiarFotos(void* param) {
     return;
   }
   lastLimpiarCommandMs = now_ms;
+  portEXIT_CRITICAL(&dedupSpinlock);
 
   std::vector<String> files = listarFotos();
   int total = (int)files.size();

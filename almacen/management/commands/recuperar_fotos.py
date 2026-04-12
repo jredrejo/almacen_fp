@@ -12,11 +12,15 @@ Usage:
     python manage.py recuperar_fotos --aula 1 --action limpiar
 """
 import json
+import logging
 import os
 import sys
 
+import paho.mqtt
 import paho.mqtt.client as mqtt
 from django.core.management.base import BaseCommand, CommandError
+
+logger = logging.getLogger(__name__)
 
 # --- Broker config (match mqtt_listener.py verbatim)
 MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
@@ -77,7 +81,12 @@ class Command(BaseCommand):
                 mqtt.CallbackAPIVersion.VERSION2,
                 client_id=f"django-recuperar-fotos-{os.getpid()}",
             )
-        except (AttributeError, TypeError):
+        except (AttributeError, TypeError) as exc:
+            logger.warning(
+                "paho-mqtt %s doesn't support CallbackAPIVersion.VERSION2, "
+                "falling back to legacy API: %s",
+                paho.mqtt.__version__, exc,
+            )
             client = mqtt.Client(client_id=f"django-recuperar-fotos-{os.getpid()}")
 
         if MQTT_USER:
@@ -93,8 +102,8 @@ class Command(BaseCommand):
             info = client.publish(topic, payload, qos=1, retain=False)
             try:
                 info.wait_for_publish(timeout=5.0)
-            except Exception as exc:
-                raise CommandError(f"Timeout esperando PUBACK del broker: {exc}")
+            except (ValueError, RuntimeError) as exc:
+                raise CommandError(f"Error esperando PUBACK del broker: {exc}")
 
             if info.rc != mqtt.MQTT_ERR_SUCCESS:
                 raise CommandError(
