@@ -14,8 +14,8 @@ from django.views.decorators.http import require_GET, require_http_methods
 from almacen.api_auth import require_api_key
 from almacen.models import Aula, FotoRFID, Persona, Producto
 
-# Patrón para validar formato de EPC (solo caracteres hexadecimales)
-EPC_PATTERN = re.compile(r"^[A-Fa-f0-9]+$")
+# Patron EPC estricto: solo hex uppercase, 8-24 caracteres (identico a mqtt_listener y CONTRACT.md)
+EPC_PATTERN = re.compile(r"^[0-9A-F]{8,24}$")
 
 
 def _resolve_epc(epc: str) -> dict[str, Any] | None:
@@ -74,6 +74,9 @@ def epc_lookup(request, epc: str) -> JsonResponse:
 
     Retorna informacion del producto o persona asociado al EPC.
     """
+    # Normalizar a mayusculas (D-02: REST API es tolerante con minusculas)
+    epc = epc.upper()
+
     # Validar formato de EPC
     if not EPC_PATTERN.match(epc):
         return JsonResponse(
@@ -126,6 +129,8 @@ def epc_bulk_lookup(request) -> JsonResponse:
         if not isinstance(epc, str):
             results.append({"epc": str(epc), "error": "EPC debe ser string"})
             continue
+
+        epc = epc.upper()  # Normalizar a mayusculas (D-02)
 
         # Validar formato
         if not EPC_PATTERN.match(epc):

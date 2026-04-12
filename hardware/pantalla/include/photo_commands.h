@@ -24,6 +24,11 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 
+// Compile-time guard: AULA_ID must be defined and non-empty (WR-08).
+#ifndef AULA_ID
+#error "AULA_ID must be defined in config.h"
+#endif
+
 // Globals from main.cpp / camera_manager.h -- both headers are included in the
 // same translation unit (main.cpp), so these symbols resolve.
 extern PubSubClient mqttClient;
@@ -202,7 +207,13 @@ inline void tareaUploadFotos(void* param) {
       if (subirFoto(files[i])) { success = true; break; }
       vTaskDelay(pdMS_TO_TICKS(500));
     }
-    if (success) ok++; else fail++;
+    if (success) ok++; else {
+      fail++;
+#ifdef DEBUG
+      Serial.print("[foto-cmd] Fallo subiendo ");
+      Serial.println(files[i]);
+#endif
+    }
     vTaskDelay(pdMS_TO_TICKS(100));  // throttle: cap ~10 uploads/sec
   }
 
