@@ -219,26 +219,20 @@ def upload_foto(request) -> JsonResponse:
         except (Aula.DoesNotExist, ValueError):
             aula_obj = None
 
-    # Idempotency: (epc, timestamp_captura) is the natural key. Retry = no-op.
-    existing = FotoRFID.objects.filter(
-        epc=epc, timestamp_captura=timestamp_captura
-    ).first()
-    if existing is not None:
-        return JsonResponse(
-            {"ok": True, "id": existing.id, "duplicate": True},
-            status=200,
-        )
-
+    # Idempotency: (epc, timestamp_captura) unique constraint guarantees atomicity.
+    # get_or_create() handles the race condition atomically; IntegrityError is a
+    # last-resort fallback for edge cases.
     try:
-        foto = FotoRFID(
+        foto, created = FotoRFID.objects.get_or_create(
             epc=epc,
-            aula=aula_obj,
             timestamp_captura=timestamp_captura,
-            tamano_bytes=size,
+            defaults={
+                "aula": aula_obj,
+                "tamano_bytes": size,
+            },
         )
-        foto.imagen.save(filename, ContentFile(body), save=True)
     except IntegrityError:
-        # Race: two concurrent uploads. Re-fetch and return idempotent.
+        # Race: two concurrent uploads slipped past get_or_create.
         existing = FotoRFID.objects.filter(
             epc=epc, timestamp_captura=timestamp_captura
         ).first()
@@ -248,5 +242,14 @@ def upload_foto(request) -> JsonResponse:
                 status=200,
             )
         return JsonResponse({"error": "DB integrity error"}, status=500)
+
+    if created or not foto.imagen.storage.exists(foto.imagen.name):
+        foto.imagen.save(filename, ContentFile(body), save=True)
+
+    if not created:
+        return JsonResponse(
+            {"ok": True, "id": foto.id, "duplicate": True},
+            status=200,
+        )
 
     return JsonResponse({"ok": True, "id": foto.id}, status=201)
