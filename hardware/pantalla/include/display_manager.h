@@ -15,6 +15,9 @@
 extern bool hayErrorSD();
 #endif
 
+// Forward declaration para indicador MQTT (D-06)
+extern bool isMqttConnected();
+
 // --- Canvas para double-buffering (se crea en main.cpp) ---
 extern M5Canvas canvas;
 
@@ -91,6 +94,18 @@ inline void dibujarBarraEstado(const char* nombreAula, const char* horaLocal) {
     canvas.drawString("SD!", SCREEN_WIDTH / 2, STATUS_BAR_Y + STATUS_BAR_HEIGHT / 2);
   }
 #endif
+
+  // Indicador MQTT desconectado: icono amarillo "M!" a la izquierda del SD indicator
+  // Solo mostrar si NO conectado (per D-06)
+  if (!isMqttConnected()) {
+    // Posicion: izquierda del centro, desplazado para no solapar con SD!
+    int mqttIndicatorX = SCREEN_WIDTH / 2 - 60;
+    canvas.fillCircle(mqttIndicatorX, STATUS_BAR_Y + STATUS_BAR_HEIGHT / 2, 18, TFT_YELLOW);
+    canvas.setTextColor(TFT_BLACK);
+    canvas.setTextSize(2);
+    canvas.setTextDatum(MC_DATUM);
+    canvas.drawString("M!", mqttIndicatorX, STATUS_BAR_Y + STATUS_BAR_HEIGHT / 2);
+  }
 
   // Reloj a la derecha
   canvas.setTextDatum(middle_right);

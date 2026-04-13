@@ -3,7 +3,7 @@
 Fuente de verdad del contrato MQTT + REST + Resilience + Tests entre
 `hardware/almacen` (reader), `hardware/pantalla` (display) y `almacen/` (Django).
 
-Ultima actualizacion: Phase 6 (MQTT). Phases 7-9 rellenaran REST/Resilience/Tests.
+Ultima actualizacion: Phase 8 (Resilience). Phase 9 rellenara Tests.
 
 ---
 
@@ -176,7 +176,80 @@ Body: raw JPEG bytes (must start with `FF D8 FF`). Size limit: 10 MB.
 
 ## Resilience
 
-_To be defined in Phase 8 -- Resilience & Error Handling._
+### Summary Table
+
+| Component | Operation | Timeout | Retry | Backoff | On Failure |
+|-----------|-----------|---------|-------|---------|------------|
+| Reader | MQTT publish | - | No | - | Discard reading (non-critical, can re-scan) |
+| Reader | MQTT reconnect | - | Yes | Exponential 1s→30s | Continue attempting |
+| Pantalla | HTTP EPC resolution | 3s | No | - | Show "Desconocido" (orange), log event |
+| Pantalla | HTTP photo upload | 15s | No | - | Keep on SD, retry via `upload_fotos` command |
+| Pantalla | MQTT reconnect | - | Yes | Exponential 1s→30s | Show "M!" indicator, continue attempting |
+| Django | MQTT processing | - | - | - | Log + persist (orphan or regular) |
+| Django | Idempotency cache | 35s TTL | - | - | Reject duplicate EPC within window |
+
+### MQTT Disconnection Behavior
+
+**Reader (`hardware/almacen`):**
+- Exponential backoff: starts at 1s, doubles each attempt, caps at 30s (`MAX_RECONNECT_INTERVAL`)
+- During disconnection: readings are **discarded** (not buffered). Acceptable because RFID reads are non-critical and can be repeated by re-scanning the tag.
+- No visual indicator (status visible only in Serial logs).
+- Implementation: `mqttReconnectStateMachine()` in `conexionMQTT.ino`
+
+**Pantalla (`hardware/pantalla`):**
+- Exponential backoff: identical to reader (1s→30s)
+- During disconnection: **Yellow "M!" indicator** in status bar alerts user that MQTT notifications won't arrive.
+- Receives MQTT notifications from Django after EPC processing, so disconnect means no UI updates.
+- Implementation: `mqttReconnectStateMachine()` in `mqtt_manager.h`, indicator in `display_manager.h`
+
+**Django (`almacen/`):**
+- Listener reconnection handled by Paho client with automatic reconnect.
+- During disconnection: no readings received (upstream issue).
+
+### HTTP Timeout Behavior
+
+**EPC Resolution (pantalla → Django):**
+- Timeout: 3 seconds (`api_client.h:85`)
+- No retry: if timeout/error, show EPC as "Desconocido" with orange color
+- Rationale: next scan of same tag will retry naturally; blocking UI for retries hurts UX
+- Implementation: `resolverEpc()` in `api_client.h`
+
+**Photo Upload (pantalla → Django):**
+- Timeout: 15 seconds (`photo_commands.h`)
+- No automatic retry: failed photos remain on SD card
+- Recovery: `upload_fotos` MQTT command triggers bulk upload attempt
+- Rationale: photos are secondary to core RFID flow; manual recovery acceptable
+
+### Unknown EPC Handling (RES-03)
+
+**Scenario:** Valid EPC (format OK) not found in Producto or Persona tables.
+
+| Step | Component | Behavior |
+|------|-----------|----------|
+| 1 | Reader | Publishes to `rfid/lectura/{aula_id}` normally (reader doesn't know if EPC exists) |
+| 2 | Django | Receives via MQTT listener, creates `LecturaHuerfana` record, logs `lectura_huerfana_created` once |
+| 3 | Pantalla | Calls REST API `/api/epc/{epc}/`, receives 404 |
+| 4 | Pantalla | Shows "EPC desconocido:" with orange color (`COLOR_DESCONOCIDO = TFT_ORANGE`) |
+| 5 | Pantalla | Adds event to log as type "desconocido" |
+
+**Audit trail:** `LecturaHuerfana` model stores `(epc, timestamp, aula_id)` for every unknown EPC. Viewable in Django admin under "Lecturas huérfanas".
+
+### Idempotency (Duplicate Prevention)
+
+Django listener maintains per-aula cache (`last_epc:{aula_id}`) with 35-second TTL.
+
+- Same EPC scanned twice within 35s on same aula: second processing skipped
+- Combined with QoS 0 + reader dedup buffer: provides at-least-once semantics without duplicates
+- Cache key: `last_epc:{aula_id}`, value: `epc`
+- Implementation: `CACHE_TIMEOUT_SECONDS = 35` in `mqtt_listener.py`
+
+### Visual Indicators
+
+| Indicator | Location | Color | Meaning |
+|-----------|----------|-------|---------|
+| "SD!" | Status bar (center) | Red circle, white text | SD card write error - photos not saving |
+| "M!" | Status bar (left of center) | Yellow circle, black text | MQTT disconnected - no notifications |
+| Orange text | Main display | TFT_ORANGE | Unknown EPC (valid format, not in database) |
 
 ---
 

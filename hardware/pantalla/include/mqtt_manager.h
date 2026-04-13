@@ -245,4 +245,13 @@ void mqttReconnectStateMachine(PubSubClient& client) {
   }
 }
 
+/**
+ * Verifica si MQTT esta conectado al broker.
+ * Usado por display_manager.h para mostrar indicador de desconexion (D-06).
+ * @return true si conectado, false si desconectado o esperando reconexion
+ */
+inline bool isMqttConnected() {
+  return mqttState == MQTT_ST_CONNECTED;
+}
+
 #endif // MQTT_MANAGER_H
