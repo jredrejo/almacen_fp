@@ -12,7 +12,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from almacen.models import Aula, Persona, Prestamo, Producto
+from almacen.models import Aula, LecturaHuerfana, Persona, Prestamo, Producto
 
 # --- Configuración del Broker ---
 MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
@@ -208,9 +208,15 @@ class BatchProcessor:
         try:
             producto = Producto.objects.select_related("aula").get(epc=epc)
         except Producto.DoesNotExist:
-            logger.warning(
-                f"EPC '{epc}' no encontrado ni en Producto ni en Persona. "
-                f"Aula ID: {aula_id}, Timestamp: {timestamp}"
+            # Persist as orphan reading for audit trail (D-01, RES-03)
+            LecturaHuerfana.objects.create(
+                epc=epc,
+                timestamp=timestamp,
+                aula_id=aula_id
+            )
+            logger.info(
+                "lectura_huerfana_created",
+                extra={"epc": epc, "aula_id": aula_id, "timestamp": str(timestamp)}
             )
             return
 

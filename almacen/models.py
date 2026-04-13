@@ -169,6 +169,25 @@ class Prestamo(models.Model):
         return f"{self.producto} → {self.usuario}"
 
 
+class LecturaHuerfana(models.Model):
+    """
+    Lecturas RFID de EPCs validos que no existen en Producto ni Persona.
+    Proporciona audit trail de tags no registrados.
+    """
+    epc = models.CharField(max_length=24, db_index=True)
+    timestamp = models.DateTimeField()
+    aula_id = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Lectura huerfana"
+        verbose_name_plural = "Lecturas huerfanas"
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        return f"{self.epc} @ aula {self.aula_id} ({self.timestamp})"
+
+
 class FotoRFID(models.Model):
     """
     Foto RFID recibida del Tab5 vía upload bajo demanda (Phase 06.1, D-09/D-10).

@@ -2,7 +2,7 @@ from django.contrib import admin, messages
 from django.core.management import call_command
 from django.shortcuts import render
 
-from .models import Aula, FotoRFID, Producto, Ubicacion, Prestamo, Persona
+from .models import Aula, FotoRFID, LecturaHuerfana, Producto, Ubicacion, Prestamo, Persona
 
 
 @admin.register(Aula)
@@ -103,3 +103,12 @@ class FotoRFIDAdmin(admin.ModelAdmin):
             self.message_user(request, f"Fallo al publicar limpiar_fotos para aula {aula_id}: {exc}", level=messages.ERROR)
             return
         self.message_user(request, f"Publicado limpiar_fotos para aula {aula_id}. /fotos/ sera borrado.", level=messages.WARNING)
+
+
+@admin.register(LecturaHuerfana)
+class LecturaHuerfanaAdmin(admin.ModelAdmin):
+    list_display = ("epc", "aula_id", "timestamp", "created_at")
+    list_filter = ("aula_id", "timestamp")
+    search_fields = ("epc",)
+    readonly_fields = ("epc", "timestamp", "aula_id", "created_at")
+    ordering = ("-timestamp",)
