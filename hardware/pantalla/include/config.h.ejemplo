@@ -1,0 +1,58 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// =============================================================================
+// Configuracion del Tab5 - Pantalla de notificaciones RFID
+// =============================================================================
+// Rellenar estos valores con los datos de tu red y servidor antes de compilar.
+// Este archivo NO debe subirse a control de versiones con credenciales reales.
+// =============================================================================
+
+// --- Credenciales WiFi ---
+// SSID y contrasena de la red WiFi a la que se conectara el Tab5
+#define WIFI_SSID        "educarexDEV"
+#define WIFI_PASSWORD    "loquesea"
+
+// --- Configuracion MQTT ---
+// Direccion IP o hostname del broker MQTT (Mosquitto)
+#define MQTT_SERVER      "la ip de tu servidor"
+#define MQTT_PORT        1883
+// Usuario y contrasena del broker MQTT (dejar vacio si no requiere autenticacion)
+#define MQTT_USER        "rfid"
+#define MQTT_PASSWORD    "la que sea"
+
+// --- Identificacion del dispositivo ---
+// ID del aula donde esta instalado el Tab5 (debe coincidir con el aula en Django)
+#define AULA_ID          "1"
+// ID unico del cliente MQTT para este dispositivo
+#define CLIENT_ID        "tab5_aula_" AULA_ID
+
+// --- API Django ---
+// URL base del servidor Django (sin barra final)
+#define API_BASE_URL     "http://tu_servidor:8000"
+// Clave de API para autenticacion (header: Authorization: ApiKey <clave>)
+#define API_KEY          "TU_API_KEY"
+
+// --- Topics MQTT ---
+// Canonical lecture topic (D-06, docs/CONTRACT.md) — reader publishes here and pantalla subscribes here.
+#define MQTT_TOPIC_LECTURA  "rfid/lectura/" AULA_ID
+
+// Para los comandos en los que Djanbo obtiene y manda borrar las fotos de la Tab5.
+// Subscribed with QoS 1 from mqtt_manager.h::attemptMqttConnect.
+// NOTE: sub-topic under rfid/sistema/ to avoid collision with the retained LWT on rfid/sistema.
+#define MQTT_TOPIC_COMANDO  "rfid/sistema/comando/" AULA_ID
+
+// Status feedback topic: Tab5 publishes per-run upload/clean summary here.
+// QoS 0, retain=false.
+#define MQTT_TOPIC_ESTADO   "rfid/sistema/estado/" AULA_ID
+
+// --- rfid/sistema identity (documentacion/CONTRACT.md) ---
+#define DEVICE_ID   "pantalla-aula" AULA_ID
+#define DEVICE_ROLE "display"
+#define DEVICE_VERSION "1.2.0"
+
+// --- Modo debug ---
+// Comentar esta linea para desactivar los mensajes por Serial
+#define DEBUG 1
+
+#endif // CONFIG_H
