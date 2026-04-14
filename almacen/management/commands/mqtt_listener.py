@@ -66,15 +66,12 @@ def setup_logging():
     )
     handler.setFormatter(formatter)
 
-    # Configurar el logger
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
-    logger.addHandler(handler)
-
-    # También configurar el logger raíz para capturar todo
+    # Configurar el logger raíz para capturar todo (incluye este módulo vía propagación)
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
     root_logger.addHandler(handler)
+
+    logger = logging.getLogger(__name__)
 
     # Mostrar información sobre dónde se están guardando los logs
     logger.info(f"Logging configured. Log file: {log_file}")

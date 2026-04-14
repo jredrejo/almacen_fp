@@ -29,7 +29,7 @@ class Aula(models.Model):
 
 class Producto(models.Model):
     # Código EPC RFID (leído por el lector; típicamente emulación de teclado)
-    epc = models.CharField("EPC", max_length=96, unique=True)
+    epc = models.CharField("EPC", max_length=24, unique=True)
     nombre = models.CharField(max_length=255)
     posicion = models.CharField(max_length=100, blank=True)
     n_serie = models.CharField("Nº de serie", max_length=255, blank=True)
@@ -87,7 +87,7 @@ class Persona(models.Model):
         help_text="Aulas a las que esta persona tiene acceso. Si está vacío, tiene acceso a todas las aulas.",
     )
     epc = models.CharField(
-        "EPC", max_length=96, unique=True, default=None, blank=True, null=True
+        "EPC", max_length=24, unique=True, default=None, blank=True, null=True
     )
 
     def get_aulas_access(self):
@@ -157,7 +157,7 @@ class Prestamo(models.Model):
         blank=True,
         default=None,
     )
-    tomado_en = models.DateTimeField(auto_now_add=True)
+    tomado_en = models.DateTimeField(db_index=True)
     devuelto_en = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -197,7 +197,7 @@ class FotoRFID(models.Model):
     """
 
     imagen = models.ImageField("Imagen", upload_to="fotos_rfid/")
-    epc = models.CharField("EPC", max_length=96, db_index=True)
+    epc = models.CharField("EPC", max_length=24, db_index=True)
     aula = models.ForeignKey(
         Aula,
         on_delete=models.SET_NULL,
