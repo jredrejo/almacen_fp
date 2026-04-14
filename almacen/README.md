@@ -14,3 +14,13 @@ todo payload entrante contra ese contrato.
 - `management/commands/mqtt_listener.py` -- subscriber MQTT + validacion + BatchProcessor
 - `api.py` / `api_urls.py` -- endpoints REST consumidos por la pantalla
 - `api_auth.py` -- auth `Authorization: ApiKey ...`
+
+## Tests de contrato
+
+Para ejecutar los tests que verifican el contrato de integracion entre componentes:
+
+```bash
+make test-contract
+```
+
+Ver `documentacion/CONTRACT.md` seccion Tests para mas detalles.

@@ -255,4 +255,26 @@ Django listener maintains per-aula cache (`last_epc:{aula_id}`) with 35-second T
 
 ## Tests
 
-_To be defined in Phase 9 -- Integration Tests & CI._
+### Ejecutar tests de contrato
+
+Todos los tests que verifican el contrato MQTT + REST se ejecutan con:
+
+```bash
+make test-contract
+```
+
+Esto ejecuta:
+- **E2E MQTT** (`tests/test_contract_mqtt_e2e.py`): simula mensaje MQTT lectura -> verifica persistencia en Django (Prestamo, Ubicacion, LecturaHuerfana).
+- **API REST** (`tests/test_api.py`): EPC valido conocido, desconocido (404), invalido (400), bulk 50, bulk 51, API key invalida, API key valida.
+
+### Requisitos
+
+- Python 3.11+, `uv` instalado
+- Base de datos Django migrada (`uv run python manage.py migrate`)
+- No requiere broker MQTT real (los tests usan mock)
+
+### Ejecutar todos los tests
+
+```bash
+make test-all
+```

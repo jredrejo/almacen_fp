@@ -15,3 +15,13 @@ No modificar topics, payloads, QoS ni formatos sin actualizar primero ese docume
 - `Envio_datos.ino` -- publish de lecturas en `rfid/lectura/{aula_id}`
 - `opciones.h` -- `aulaId`, `DEVICE_ID`, `ROLE`
 - `bufferRepetidos.ino` -- dedup UID buffer (base del at-least-once)
+
+## Tests de contrato
+
+Para ejecutar los tests que verifican el contrato de integracion entre componentes:
+
+```bash
+make test-contract
+```
+
+Ver `documentacion/CONTRACT.md` seccion Tests para mas detalles.

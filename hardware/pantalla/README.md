@@ -68,3 +68,13 @@ por el gestor de componentes de ESP-IDF durante la primera compilación.
 
 - `partitions/default_16MB.csv` — tabla de particiones personalizada para flash de 16MB.
 - `sdkconfig.defaults` / `sdkconfig.tab5` — configuración de SDK para el Tab5.
+
+## Tests de contrato
+
+Para ejecutar los tests que verifican el contrato de integracion entre componentes:
+
+```bash
+make test-contract
+```
+
+Ver `documentacion/CONTRACT.md` seccion Tests para mas detalles.
