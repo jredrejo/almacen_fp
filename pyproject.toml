@@ -51,4 +51,5 @@ testpaths = ["tests"]
 addopts = "-v --tb=short"
 markers = [
     "django_db: mark test as requiring database access",
+    "contract: contract integration tests (MQTT + REST)",
 ]

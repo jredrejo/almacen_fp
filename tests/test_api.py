@@ -4,6 +4,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import Client, RequestFactory, override_settings
 from django.http import JsonResponse
+from django.utils import timezone
 from almacen.api_auth import require_api_key
 from almacen.models import Aula, Producto, Persona, Prestamo
 
@@ -82,7 +83,7 @@ class TestAPIKeyAuthentication:
 class TestEPCLookupEndpoints:
     """Pruebas para los endpoints de resolucion EPC."""
 
-    @override_settings(API_KEY="test-secret-key")
+    @override_settings(API_KEY="test-secret-key", SECURE_SSL_REDIRECT=False)
     def setUp(self):
         """Configurar datos de prueba."""
         self.client = Client()
@@ -103,7 +104,8 @@ class TestEPCLookupEndpoints:
             epc="DEF45678", nombre="Osciloscopio Tektronix", aula=self.aula
         )
         self.prestamo = Prestamo.objects.create(
-            producto=self.producto_prestado, usuario=self.usuario, devuelto_en=None
+            producto=self.producto_prestado, usuario=self.usuario,
+            tomado_en=timezone.now(), devuelto_en=None
         )
 
         # Crear persona con EPC (el signal crea automaticamente la Persona)
@@ -115,7 +117,7 @@ class TestEPCLookupEndpoints:
         self.persona.epc = "A1B2C3D4"  # EPC valido (solo hex)
         self.persona.save()
 
-    @override_settings(API_KEY="test-secret-key")
+    @override_settings(API_KEY="test-secret-key", SECURE_SSL_REDIRECT=False)
     def test_get_epc_with_producto_returns_producto_data(self):
         """Prueba que GET /api/epc/{epc}/ con EPC de producto devuelve datos completos."""
         self.setUp()
@@ -133,7 +135,7 @@ class TestEPCLookupEndpoints:
         assert data["prestado"] is False
         assert data["prestado_a"] is None
 
-    @override_settings(API_KEY="test-secret-key")
+    @override_settings(API_KEY="test-secret-key", SECURE_SSL_REDIRECT=False)
     def test_get_epc_with_producto_prestado_returns_prestamo_status(self):
         """Prueba que producto prestado devuelve estado de prestamo."""
         self.setUp()
@@ -150,7 +152,7 @@ class TestEPCLookupEndpoints:
         assert data["prestado"] is True
         assert data["prestado_a"] == "juan"  # username
 
-    @override_settings(API_KEY="test-secret-key")
+    @override_settings(API_KEY="test-secret-key", SECURE_SSL_REDIRECT=False)
     def test_get_epc_with_persona_returns_persona_data(self):
         """Prueba que GET /api/epc/{epc}/ con EPC de persona devuelve datos de persona."""
         self.setUp()
@@ -165,7 +167,7 @@ class TestEPCLookupEndpoints:
         assert data["type"] == "persona"
         assert data["nombre"] == "maria@example.com"  # email cuando no hay full_name
 
-    @override_settings(API_KEY="test-secret-key")
+    @override_settings(API_KEY="test-secret-key", SECURE_SSL_REDIRECT=False)
     def test_get_epc_with_unknown_epc_returns_404(self):
         """Prueba que EPC inexistente devuelve 404."""
         self.setUp()
@@ -179,7 +181,7 @@ class TestEPCLookupEndpoints:
         assert data["error"] == "EPC no encontrado"
         assert data["epc"] == "FFFF0000"
 
-    @override_settings(API_KEY="test-secret-key")
+    @override_settings(API_KEY="test-secret-key", SECURE_SSL_REDIRECT=False)
     def test_get_epc_with_invalid_format_returns_400(self):
         """Prueba que EPC con formato invalido devuelve 400."""
         self.setUp()
@@ -193,7 +195,7 @@ class TestEPCLookupEndpoints:
         assert data["error"] == "Formato EPC invalido"
         assert data["epc"] == "XYZ!!"
 
-    @override_settings(API_KEY="test-secret-key")
+    @override_settings(API_KEY="test-secret-key", SECURE_SSL_REDIRECT=False)
     def test_get_epc_with_lowercase_input_normalizes_to_uppercase(self):
         """Prueba que EPC en minusculas se normaliza a mayusculas (D-02)."""
         self.setUp()
@@ -206,7 +208,7 @@ class TestEPCLookupEndpoints:
         data = json.loads(response.content)
         assert data["epc"] == "ABC12345"
 
-    @override_settings(API_KEY="test-secret-key")
+    @override_settings(API_KEY="test-secret-key", SECURE_SSL_REDIRECT=False)
     def test_get_epc_with_short_hex_returns_400(self):
         """Prueba que EPC hex valido pero menor a 8 chars devuelve 400 (D-01)."""
         self.setUp()
@@ -219,7 +221,7 @@ class TestEPCLookupEndpoints:
         data = json.loads(response.content)
         assert data["error"] == "Formato EPC invalido"
 
-    @override_settings(API_KEY="test-secret-key")
+    @override_settings(API_KEY="test-secret-key", SECURE_SSL_REDIRECT=False)
     def test_get_epc_without_api_key_returns_401(self):
         """Prueba que peticion sin API key devuelve 401."""
         self.setUp()
@@ -227,7 +229,7 @@ class TestEPCLookupEndpoints:
 
         assert response.status_code == 401
 
-    @override_settings(API_KEY="test-secret-key")
+    @override_settings(API_KEY="test-secret-key", SECURE_SSL_REDIRECT=False)
     def test_post_bulk_epc_with_valid_epcs_returns_results(self):
         """Prueba que POST /api/epc/ resuelve multiples EPCs."""
         self.setUp()
@@ -255,7 +257,7 @@ class TestEPCLookupEndpoints:
         assert data["results"][2]["epc"] == "A1B2C3D4"
         assert data["results"][2]["type"] == "persona"
 
-    @override_settings(API_KEY="test-secret-key")
+    @override_settings(API_KEY="test-secret-key", SECURE_SSL_REDIRECT=False)
     def test_post_bulk_epc_with_more_than_50_returns_400(self):
         """Prueba que mas de 50 EPCs devuelve error."""
         self.setUp()
@@ -272,7 +274,7 @@ class TestEPCLookupEndpoints:
         assert data["error"] == "Maximo 50 EPCs por peticion"
         assert data["enviados"] == 51
 
-    @override_settings(API_KEY="test-secret-key")
+    @override_settings(API_KEY="test-secret-key", SECURE_SSL_REDIRECT=False)
     def test_post_bulk_epc_with_invalid_json_returns_400(self):
         """Prueba que JSON invalido devuelve 400."""
         self.setUp()
@@ -285,7 +287,7 @@ class TestEPCLookupEndpoints:
 
         assert response.status_code == 400
 
-    @override_settings(API_KEY="test-secret-key")
+    @override_settings(API_KEY="test-secret-key", SECURE_SSL_REDIRECT=False)
     def test_post_bulk_epc_with_non_list_epcs_returns_400(self):
         """Prueba que epcs no siendo lista devuelve 400."""
         self.setUp()
@@ -297,3 +299,20 @@ class TestEPCLookupEndpoints:
         )
 
         assert response.status_code == 400
+
+    @override_settings(API_KEY="test-secret-key", SECURE_SSL_REDIRECT=False)
+    def test_post_bulk_epc_with_exactly_50_returns_200(self):
+        """Prueba que exactamente 50 EPCs devuelve 200 (limite permitido)."""
+        self.setUp()
+        epcs = [f"{i:08X}" for i in range(50)]
+        response = self.client.post(
+            "/api/epc/",
+            json.dumps({"epcs": epcs}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION="ApiKey test-secret-key",
+        )
+
+        assert response.status_code == 200
+        data = json.loads(response.content)
+        assert "results" in data
+        assert len(data["results"]) == 50
