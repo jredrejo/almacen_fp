@@ -89,18 +89,26 @@ uv run python manage.py runserver
 
 1. Abre con el ide de Arduino el archivo `almacen.ino` de la carpeta hardware/almacen.
 2. En el menú Herramientas -> Placas -> Gestor de Placas busca e instala "esp32 de Espressif Systems"
-3. Instala las librerías necesarias con la opción "Gestionar Bibliotecas". Las librearías están listadas en la sección siguiente.
+3. Instala las librerías necesarias con la opción "Gestionar Bibliotecas". Las librerías están listadas en la sección siguiente.
 4. Seleciona la tarjeta "ESP32 Dev Module" en el menú Herramientas.
-5. Compila y sube el archivo a la tarjea.
+5. Compila, exportálo usando el menú Sketch -> Exportar binario compilado
+6. Localiza la ip del esp32 y ve a http://ip/update y sube el archivo almacen.ino.bin de la carpeta hardware/almacen/build
 
 ### Librerías necesarias
 
 * [Timezone](https://github.com/JChristensen/Timezone) (v1.2.6)
 * [NTPClient](https://github.com/arduino-libraries/NTPClient) (v3.2.1
 * [PubSubClient](https://github.com/knolleary/pubsubclient) (v2.8)
-* [AsyncTCP](https://github.com/ESP32Async/AsyncTCP) (v3.4.9)
-* [ESPAsyncWebServer](https://github.com/ESP32Async/ESPAsyncWebServer) (v3.9.2)
+* [AsyncTCP](https://github.com/ESP32Async/AsyncTCP) (v3.4.10)
+* [ESPAsyncWebServer](https://github.com/ESP32Async/ESPAsyncWebServer) (v3.10.3)
 * [ElegantOTA](https://github.com/ayushsharma82/ElegantOTA) (v3.1.7)
+
+**IMPORTANTE**: ElegantOTA require un cambio en su código fuente para compilar. En ~/Arduino/libraries/ElegantOTA/src/ElegantOTA.h:
+```diff
+26  #ifndef ELEGANTOTA_USE_ASYNC_WEBSERVER
+27 -  #define ELEGANTOTA_USE_ASYNC_WEBSERVER 0
+27 +  #define ELEGANTOTA_USE_ASYNC_WEBSERVER 1
+```
 
 ## Compilación del firmware del M5Stack Tab5 (con PlatformIO)
 

@@ -8,7 +8,6 @@
 /*-------------------------------------------------------------------------------*/
 
 //Definición de librerías y elementos externos
-#define ELEGANTOTA_USE_ASYNC_WEBSERVER 1
 #include "credenciales.h"
 #include "opciones.h"
 #include <WiFi.h>          //Librería para la conexión a la wifi
