@@ -273,8 +273,18 @@ inline bool iniciarVideoV4L2() {
   csiCfg.reset_pin = -1;  // No conectado (confirmado por BSP)
   csiCfg.pwdn_pin = -1;
 
+  // IPA set para ISP auto-init dentro de esp_video_init (AWB/AGC/gamma/CCM/sharpen)
+  static const char *ipa_names[] = {
+    "awb.gray", "agc.threshold", "denoising.gf",
+    "sharpen.ff", "gamma.lf", "cc.linear"
+  };
+  esp_video_init_isp_config_t ispInitCfg = {};
+  ispInitCfg.ipa_nums = 6;
+  ispInitCfg.ipa_names = ipa_names;
+
   esp_video_init_config_t videoCfg = {};
   videoCfg.csi = &csiCfg;
+  videoCfg.isp = &ispInitCfg;
 
   esp_err_t err = esp_video_init(&videoCfg);
   if (err != ESP_OK) {
@@ -436,6 +446,26 @@ inline bool iniciarVideoV4L2() {
     }
   }
 
+  // 5.5. Corregir orientacion del sensor SC2356 (mounted rotado 180 en Tab5).
+  // Ambas flips = rotacion 180; si solo una, saldra espejo.
+  {
+    struct v4l2_control flipCtrl = {};
+    flipCtrl.id = V4L2_CID_HFLIP;
+    flipCtrl.value = 1;
+    if (ioctl(videoFd, VIDIOC_S_CTRL, &flipCtrl) != 0) {
+#ifdef DEBUG
+      Serial.println("Aviso: V4L2_CID_HFLIP no soportado");
+#endif
+    }
+    flipCtrl.id = V4L2_CID_VFLIP;
+    flipCtrl.value = 1;
+    if (ioctl(videoFd, VIDIOC_S_CTRL, &flipCtrl) != 0) {
+#ifdef DEBUG
+      Serial.println("Aviso: V4L2_CID_VFLIP no soportado");
+#endif
+    }
+  }
+
   // 6. Iniciar streaming
   int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   if (ioctl(videoFd, VIDIOC_STREAMON, &type) != 0) {
@@ -447,37 +477,13 @@ inline bool iniciarVideoV4L2() {
     return false;
   }
 
-  // Iniciar ISP pipeline controller (AE, AWB, AGC, gamma, CCM, sharpen).
-  // El pipeline crea una tarea que lee estadisticas ISP en bucle continuo,
-  // las pasa a los algoritmos IPA, y aplica los resultados al sensor/ISP.
-  {
-    static const char *ipa_names[] = {
-      "awb.gray", "agc.threshold", "denoising.gf",
-      "sharpen.ff", "gamma.lf", "cc.linear"
-    };
-    esp_video_isp_config_t ispCfg = {};
-    ispCfg.cam_dev = ESP_VIDEO_MIPI_CSI_DEVICE_NAME;
-    ispCfg.isp_dev = ESP_VIDEO_ISP1_DEVICE_NAME;
-    ispCfg.ipa_nums = 6;
-    ispCfg.ipa_names = ipa_names;
-
-    esp_err_t ispRet = esp_video_isp_pipeline_init(&ispCfg);
-#ifdef DEBUG
-    if (ispRet != ESP_OK) {
-      Serial.print("Aviso: ISP pipeline init fallo: ");
-      Serial.println(ispRet);
-    } else {
-      Serial.println("ISP pipeline controller iniciado (AE/AWB/AGC/gamma/CCM/sharpen)");
-    }
-#endif
-    // Silenciar NACK esperados: la IPA escribe gain/exposicion al sensor via SCCB
-    // mientras el sensor esta en readout, produciendo NACKs esporadicos inofensivos
-    esp_log_level_set("i2c.master", ESP_LOG_NONE);
-    esp_log_level_set("sccb_i2c", ESP_LOG_NONE);
-    esp_log_level_set("esp_video_sensor", ESP_LOG_NONE);
-    esp_log_level_set("esp_video", ESP_LOG_NONE);
-    esp_log_level_set("ISP", ESP_LOG_NONE);
-  }
+  // ISP pipeline controller ya auto-inicializado por esp_video_init() con la
+  // IPA pasada en videoCfg.isp. Silenciar NACK inofensivos de la IPA vs sensor.
+  esp_log_level_set("i2c.master", ESP_LOG_NONE);
+  esp_log_level_set("sccb_i2c", ESP_LOG_NONE);
+  esp_log_level_set("esp_video_sensor", ESP_LOG_NONE);
+  esp_log_level_set("esp_video", ESP_LOG_NONE);
+  esp_log_level_set("ISP", ESP_LOG_NONE);
 
   // Warmup: ciclar frames para que la IPA converja (AE/AWB necesitan ~20 frames)
   for (int w = 0; w < 20; w++) {
@@ -648,7 +654,7 @@ inline void capturarYGuardarFoto(const char* epc) {
   //    capturados la ultima vez que hubo buffers libres).
   // Drenar solo los buffers pre-encolados para obtener frame fresco
   // La IPA ya convergio durante streaming continuo (per D-07)
-  static constexpr int WARMUP_FRAMES = 2;
+  static constexpr int WARMUP_FRAMES = 40;  // Permitir que AWB/AE converjan antes de capturar
   struct v4l2_buffer v4l2Buf = {};
   for (int i = 0; i < WARMUP_FRAMES; i++) {
     memset(&v4l2Buf, 0, sizeof(v4l2Buf));
@@ -692,6 +698,22 @@ inline void capturarYGuardarFoto(const char* epc) {
   }
   Serial.println();
 #endif
+
+  // 1.5 Rotacion 180 por software (los ioctl HFLIP/VFLIP no surten efecto en
+  // el driver V4L2 del SC2356 en Tab5). Solo implementado para RGB565.
+  if (capturaPixFmt == V4L2_PIX_FMT_RGB565) {
+    size_t totalPx = (size_t)capturaAncho * (size_t)capturaAlto;
+    if (frameSize >= totalPx * 2) {
+      uint16_t* px = (uint16_t*)frameData;
+      size_t i = 0, j = totalPx - 1;
+      while (i < j) {
+        uint16_t tmp = px[i];
+        px[i] = px[j];
+        px[j] = tmp;
+        i++; j--;
+      }
+    }
+  }
 
   // 2. Codificar frame a JPEG usando HW encoder del ESP32-P4
   jpeg_encode_cfg_t encodeCfg = {};

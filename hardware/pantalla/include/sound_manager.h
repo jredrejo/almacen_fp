@@ -15,11 +15,11 @@ extern uint8_t* fotoWavData;
 extern size_t fotoWavSize;
 
 /**
- * Configura el altavoz con volumen medio.
+ * Configura el altavoz al volumen maximo.
  * Llamar una vez en setup() despues de M5.begin().
  */
 inline void setupSpeaker() {
-  M5.Speaker.setVolume(128);  // Volumen medio (0-255)
+  M5.Speaker.setVolume(255);  // Volumen maximo (0-255)
 }
 
 /**
