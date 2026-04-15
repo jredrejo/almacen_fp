@@ -19,9 +19,10 @@ from django.contrib.messages import constants as messages
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
-DEBUG = os.getenv("DEBUG", "False") == "True"
+DEBUG = os.getenv("DEBUG", "False") == "False"
 SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-key")
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "172.23.120.210,127.0.0.1,localhost").split(",")
+
 ENVIRONMENT = os.getenv("ENVIRONMENT", "local")  # solo informativo
 
 # API key para autenticacion de dispositivos Tab5
@@ -265,7 +266,10 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_SECONDS = 31536000
     SECURE_REDIRECT_EXEMPT = []
-    SECURE_SSL_REDIRECT = True
+    # nginx redirects the DNS name to HTTPS; bare-IP access (e.g. Tab5 firmware)
+    # stays on HTTP. Django must not force the redirect itself.
+    SECURE_SSL_REDIRECT = False
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https"

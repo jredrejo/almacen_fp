@@ -355,7 +355,7 @@ def toggle_prestamo(request, pk: int):
         u.persona = request.user
         u.tomado_en = timezone.now()
         u.save()
-        Prestamo.objects.create(producto=producto, usuario=request.user)
+        Prestamo.objects.create(producto=producto, usuario=request.user, tomado_en=timezone.now())
         messages.success(request, "Has tomado el producto.")
     else:
         if u.persona == request.user or is_teacher(request.user):
