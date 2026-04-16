@@ -6,7 +6,7 @@ y componentes ESP-IDF en modo híbrido.
 ## Contrato de integración
 
 El contrato MQTT + REST entre pantalla, reader y Django vive en
-[`docs/CONTRACT.md`](../../docs/CONTRACT.md) (fuente de verdad).
+[`documentacion/CONTRACT.md`](../../documentacion/CONTRACT.md) (fuente de verdad).
 
 ## Requisitos
 
@@ -25,6 +25,7 @@ Antes de compilar, copia una de las configuraciones disponibles como `config.h`:
 ```bash
 cp include/config.h.instituto include/config.h   # para el instituto
 cp include/config.h.casa include/config.h         # para desarrollo en casa
+cp include/config.h.ejemplo include/config.h      # plantilla en blanco
 ```
 
 ## Compilar y flashear
@@ -77,4 +78,4 @@ Para ejecutar los tests que verifican el contrato de integracion entre component
 make test-contract
 ```
 
-Ver `documentacion/CONTRACT.md` seccion Tests para mas detalles.
+Ver [`documentacion/CONTRACT.md`](../../documentacion/CONTRACT.md) sección Tests para más detalles.

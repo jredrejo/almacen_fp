@@ -12,7 +12,7 @@ Esta aplicación está pensada para usarla para gestionar el almacén de un inst
 
 ### Stack Principal
 
-- **Django 5.2** - Framework web Python con base de datos SQLite
+- **Django 5.1+** - Framework web Python con base de datos SQLite
 - **Python 3.11+** - Lenguaje de programación principal
 - **HTMX + Bootstrap** - Frontend dinámico sin frameworks JavaScript
 - **Redis** - Capa de caché para datos RFID EPC

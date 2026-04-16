@@ -6,6 +6,12 @@ __pycache__/
 # C extensions
 *.so
 
+# PlatformIO SCons build artifacts from local components
+hardware/pantalla/components/**/*.o
+hardware/pantalla/components/**/*.d
+hardware/pantalla/components/**/*.a
+hardware/pantalla/libesp_*.a
+
 # Distribution / packaging
 .Python
 build/
